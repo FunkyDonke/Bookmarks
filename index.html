@@ -1,57 +1,28 @@
 <!DOCTYPE html>
-<!-- 'dark' class is now permanent -->
-<html lang="en" class="dark">
+<html lang="en" class="dark"> 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bookmark Library</title>
+    <title>Cloud Bookmarks</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Lucide Icons (jsDelivr CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/lucide-react@0.379.0/dist/umd/luci.min.js" id="lucide-script"></script>
-    
-    <!-- SortableJS for Drag-and-Drop -->
+    <!-- Lucide Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide-react@0.379.0/dist/umd/lucide.min.js" id="lucide-script"></script>
+    <!-- SortableJS -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-
-    <!-- 
-      Firebase SDKs
-      These are the libraries needed to connect to Firebase.
-    -->
-    <script type="module">
-        // Import Firebase services
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, onAuthStateChanged, 
-            GoogleAuthProvider, signInWithPopup, signOut 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, 
-            onSnapshot, collection, query, where, writeBatch, getDocs, setLogLevel 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Make SDKs globally available for the main script module
-        window.firebase = {
-            initializeApp,
-            getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut,
-            getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, 
-            onSnapshot, collection, query, where, writeBatch, getDocs, setLogLevel
-        };
-    </script>
 
     <style>
         /* Base styling */
         body {
             font-family: 'Inter', sans-serif;
-            /* Dark mode background is now the default */
-            background-color: #1c1c1e; /* Fallback */
-            background-image: radial-gradient(circle at top center, #4a4a4f 0%, #1c1c1e 70%);
+            background-color: #1c1c1e;
+            background-image: radial-gradient(circle at top center, #2c2c30 0%, #1c1c1e 70%);
         }
-
-        /* Custom scrollbar (now only needs dark version) */
+        /* Custom scrollbars */
         .folder-list::-webkit-scrollbar { width: 6px; }
         .folder-list::-webkit-scrollbar-track { background: #2c2c2e; }
         .folder-list::-webkit-scrollbar-thumb { background: #4a4a4f; border-radius: 10px; }
@@ -60,1692 +31,873 @@
         #breadcrumbs-container::-webkit-scrollbar-track { background: transparent; }
         #breadcrumbs-container::-webkit-scrollbar-thumb { background: #4a4a4f; border-radius: 2px; }
 
-        /* Scrollbar for Move Modal Breadcrumbs */
-        #move-breadcrumbs::-webkit-scrollbar { height: 2px; }
-        #move-breadcrumbs::-webkit-scrollbar-track { background: transparent; }
-        #move-breadcrumbs::-webkit-scrollbar-thumb { background: #4a4a4f; border-radius: 2px; }
-
-
-        /* Glassmorphism effect */
-        .backdrop-blur-xl { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
         /* Animations */
         .animate-sheet-up { animation: sheet-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
         @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .animate-modal-in { animation: modal-in 0.2s ease-out forwards; }
         @keyframes modal-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        /* SortableJS */
+        
         .sortable-ghost { opacity: 0.3; transform: scale(0.95); }
         .sortable-chosen { cursor: grabbing; }
-
-        /* Visually hide the file input but keep it accessible */
+        
         .visually-hidden-file-input {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+        }
+
+        /* Login Overlay Styling */
+        #login-overlay {
+            background-image: radial-gradient(circle at center, #2d3748 0%, #1a202c 100%);
         }
     </style>
 </head>
-<body class="text-white overflow-hidden h-screen"> <!-- Base text is now white -->
+<body class="text-white overflow-hidden h-screen select-none">
 
-    <!-- ===== Auth Screen (Replaces Loading Spinner) ===== -->
-    <div id="auth-screen" class="fixed inset-0 bg-gray-900/50 backdrop-blur-md z-[999] flex items-center justify-center p-4">
-        <div class="flex flex-col items-center gap-6 bg-gray-800/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 w-full max-w-sm shadow-2xl">
-            <h1 class="text-2xl font-bold text-white">Bookmark Library</h1>
-            <p class="text-gray-300 text-center" id="auth-status">Sign in to sync your bookmarks across all devices.</p>
-            
-            <!-- Loading spinner (hidden by default) -->
-            <svg id="loading-spinner-icon" class="animate-spin h-10 w-10 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <!-- ===== LOGIN OVERLAY ===== -->
+    <div id="login-overlay" class="fixed inset-0 z-[1000] flex flex-col items-center justify-center p-6 text-center">
+        <div class="mb-8 p-4 bg-white/5 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl">
+            <i data-lucide="cloud" class="w-16 h-16 text-blue-400"></i>
+        </div>
+        <h1 class="text-3xl font-bold mb-2">Cloud Bookmarks</h1>
+        <p class="text-gray-400 mb-8 max-w-md">Sync your bookmarks across all your devices securely.</p>
+        
+        <button id="google-signin-btn" class="flex items-center gap-3 bg-white text-gray-900 px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-transform active:scale-95 shadow-lg">
+            <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
+            Sign in with Google
+        </button>
+        <p id="login-status" class="mt-4 text-sm text-gray-500 h-5"></p>
+    </div>
+
+    <!-- ===== LOADING SPINNER ===== -->
+    <div id="loading-spinner" class="fixed inset-0 bg-gray-900/50 backdrop-blur-md z-[999] flex items-center justify-center hidden">
+        <div class="flex flex-col items-center gap-4">
+            <svg class="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-
-            <!-- Google Sign-In Button -->
-            <button id="google-signin-button" class="w-full bg-white text-gray-800 font-medium py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors hover:bg-gray-200">
-                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.222 0-9.641-3.317-11.28-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"></path><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C41.311 36.148 44 31.284 44 24c0-1.341-.138-2.65-.389-3.917z"></path></svg>
-                <span>Sign in with Google</span>
-            </button>
+            <p class="text-gray-300 text-lg font-medium" id="spinner-text">Syncing...</p>
         </div>
     </div>
 
-    <!-- ===== Main App Container (Now hidden by default) ===== -->
+    <!-- ===== MAIN APP ===== -->
     <div id="app-container" class="h-screen w-screen flex flex-col hidden">
         
-        <!-- ===== COMPACT HEADER ===== -->
+        <!-- HEADER -->
         <header class="sticky top-0 z-30 px-4 sm:px-6 md:px-8 bg-black/30 backdrop-blur-lg border-b border-white/5">
             <div class="flex justify-between items-center pt-6 pb-3"> 
                 <!-- Breadcrumbs -->
-                <nav id="breadcrumbs-container" class="flex-1 flex items-center space-x-1 overflow-x-auto whitespace-nowrap">
-                    <!-- Breadcrumbs will be injected here -->
+                <nav id="breadcrumbs-container" class="flex-1 flex items-center space-x-1 overflow-x-auto whitespace-nowrap mask-linear-fade">
+                    <!-- Injected via JS -->
                 </nav>
-                <!-- Header Buttons -->
-                <!-- LAYOUT CHANGE: Desktop Buttons (hidden on mobile) -->
+                
+                <!-- Desktop Actions -->
                 <div class="hidden sm:flex items-center space-x-2 ml-4">
-                    <!-- NEW: User Profile Display -->
-                    <div id="user-profile" class="flex items-center space-x-2 p-2 rounded-lg bg-gray-700/50 hidden">
-                        <!-- Profile pic and name injected by JS -->
+                    <button id="desktop-lock-btn" class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors" title="Lock/Unlock Dragging">
+                        <i data-lucide="lock" class="w-5 h-5"></i>
+                    </button>
+                    <div class="w-px h-6 bg-white/10 mx-2"></div>
+                    <div class="flex items-center gap-3 bg-white/5 rounded-full pl-1 pr-3 py-1 border border-white/5">
+                        <img id="user-avatar" src="" alt="User" class="w-6 h-6 rounded-full">
+                        <span id="user-name" class="text-xs font-medium text-gray-300 max-w-[100px] truncate">User</span>
+                        <button id="logout-btn" class="ml-2 text-xs text-red-400 hover:text-red-300">Sign Out</button>
                     </div>
-                    <button id="import-button" class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors font-medium text-sm flex-shrink-0">
-                        Import
-                    </button>
-                    <button id="export-button" class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors font-medium text-sm flex-shrink-0">
-                        Export
-                    </button>
-                    <button id="drag-lock-button" class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors font-medium text-sm flex-shrink-0">
-                        Unlock
-                    </button>
-                    <!-- NEW: Sign Out Button -->
-                    <button id="signout-button" class="px-3 py-2 rounded-lg text-red-400 hover:bg-red-500 hover:text-white transition-colors font-medium text-sm flex-shrink-0 hidden">
-                        Sign Out
-                    </button>
-                    <button id="clear-all-button" class="px-3 py-2 rounded-lg text-red-400 hover:bg-red-500 hover:text-white transition-colors font-medium text-sm flex-shrink-0">
-                        Clear All
-                    </button>
                 </div>
-                <!-- LAYOUT CHANGE: Mobile "Settings" Button (hidden on desktop) -->
-                <div class="flex sm:hidden items-center ml-4">
-                     <button id="mobile-settings-button" class="px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors font-medium text-sm flex-shrink-0">
-                        Settings
-                    </button>
-                </div>
+
+                <!-- Mobile Menu Toggle -->
+                <button id="mobile-menu-btn" class="sm:hidden p-2 text-gray-300 hover:bg-white/10 rounded-lg">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
             </div>
         </header>
 
-        <!-- Main Content Grid -->
+        <!-- MAIN GRID -->
         <main class="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 pt-4 pb-32">
             <div id="items-grid" class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-4" style="grid-auto-rows: minmax(min-content, max-content);">
-                <!-- Items will be injected here -->
+                <!-- Items injected here -->
             </div>
-            <div id="empty-folder-message" class="hidden flex-col items-center justify-center h-full text-gray-500 -mt-16">
-                <i data-lucide="folder-open" class="w-16 h-16 mb-4"></i>
-                <h2 class="text-xl font-semibold text-white">Empty Folder</h2>
-                <p class="text-gray-400">Add a new link or folder to get started.</p>
+            <div id="empty-state" class="hidden flex-col items-center justify-center h-[60vh] text-gray-500">
+                <i data-lucide="folder-open" class="w-16 h-16 mb-4 opacity-50"></i>
+                <p class="text-gray-400">Folder is empty</p>
             </div>
         </main>
 
-        <!-- Footer / Add Button -->
-        <footer class="p-4">
-            <button id="add-button" class="fixed bottom-8 right-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-4 shadow-lg transition-transform active:scale-90">
-                <i data-lucide="plus" class="w-8 h-8"></i>
-            </button>
-        </footer>
+        <!-- FAB (Add Button) -->
+        <button id="fab-add" class="fixed bottom-8 right-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-4 shadow-xl shadow-blue-500/20 transition-all active:scale-90 z-40">
+            <i data-lucide="plus" class="w-8 h-8"></i>
+        </button>
 
     </div>
 
-    <!-- Hidden file input for import -->
-    <input type="file" id="import-file-input" accept="application/json" class="visually-hidden-file-input">
+    <!-- Hidden Inputs -->
+    <input type="file" id="icon-file-input" accept="image/*" class="visually-hidden-file-input">
 
-    <!-- ===== MODALS & OVERLAYS ===== -->
+    <!-- ===== BOTTOM SHEETS & MODALS ===== -->
 
-    <!-- Add Item Bottom Sheet -->
-    <div id="add-menu-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden"></div>
-    <div id="add-menu" class="fixed bottom-0 left-0 right-0 z-50 p-4 transform translate-y-full transition-transform">
-        <div class="animate-sheet-up space-y-3">
-            <div class="bg-gray-700/70 backdrop-blur-2xl border border-white/5 rounded-xl">
-                <button id="add-link-button" class="w-full text-left p-4 text-blue-400 text-lg border-b border-white/10">Add New Link</button>
-                <button id="add-folder-button" class="w-full text-left p-4 text-blue-400 text-lg">Add New Folder</button>
+    <!-- Add Menu -->
+    <div id="add-menu-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden transition-opacity"></div>
+    <div id="add-menu" class="fixed bottom-0 left-0 right-0 z-[51] p-4 transform translate-y-full transition-transform duration-300">
+        <div class="max-w-md mx-auto space-y-3">
+            <div class="bg-gray-800/90 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+                <button id="btn-add-link" class="w-full text-left p-4 text-blue-400 font-medium border-b border-white/5 active:bg-white/5">New Bookmark</button>
+                <button id="btn-add-folder" class="w-full text-left p-4 text-blue-400 font-medium active:bg-white/5">New Folder</button>
             </div>
-            <button id="cancel-add-menu" class="w-full p-4 bg-gray-700/70 backdrop-blur-2xl border border-white/5 rounded-xl text-lg text-blue-400 font-semibold">Cancel</button>
+            <button id="btn-cancel-add" class="w-full p-4 bg-gray-800/90 backdrop-blur-xl border border-white/10 rounded-2xl text-blue-400 font-bold active:bg-white/5">Cancel</button>
         </div>
     </div>
 
-    <!-- Action Bottom Sheet (Edit, Move, Delete) -->
-    <div id="action-menu-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden"></div>
-    <div id="action-menu" class="fixed bottom-0 left-0 right-0 z-50 p-4 transform translate-y-full transition-transform">
-        <div class="animate-sheet-up space-y-3">
-            <div class="bg-gray-700/70 backdrop-blur-2xl border border-white/5 rounded-xl">
-                <button id="edit-button" class="w-full text-left p-4 text-blue-400 text-lg border-b border-black/10 dark:border-white/10">Edit</button>
-                <button id="move-button" class="w-full text-left p-4 text-blue-400 text-lg border-b border-black/10 dark:border-white/10">Move</button>
-                <button id="delete-button" class="w-full text-left p-4 text-red-500 text-lg">Delete</button>
+    <!-- Action Menu (Context) -->
+    <div id="action-menu-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden"></div>
+    <div id="action-menu" class="fixed bottom-0 left-0 right-0 z-[51] p-4 transform translate-y-full transition-transform duration-300">
+        <div class="max-w-md mx-auto space-y-3">
+            <div class="bg-gray-800/90 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+                <button id="btn-edit" class="w-full text-left p-4 text-blue-400 font-medium border-b border-white/5 active:bg-white/5">Edit</button>
+                <button id="btn-move" class="w-full text-left p-4 text-blue-400 font-medium border-b border-white/5 active:bg-white/5">Move</button>
+                <button id="btn-delete" class="w-full text-left p-4 text-red-500 font-medium active:bg-white/5">Delete</button>
             </div>
-            <button id="cancel-action-menu" class="w-full p-4 bg-gray-700/70 backdrop-blur-2xl border border-white/5 rounded-xl text-lg text-blue-400 font-semibold">Cancel</button>
-        </div>
-    </div>
-    
-    <!-- NEW: Mobile Settings Bottom Sheet -->
-    <div id="mobile-settings-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden"></div>
-    <div id="mobile-settings-menu" class="fixed bottom-0 left-0 right-0 z-50 p-4 transform translate-y-full transition-transform">
-        <div class="animate-sheet-up space-y-3">
-            <!-- NEW: Show user email -->
-            <div id="mobile-user-email" class="text-sm text-gray-400 font-mono text-center p-2 truncate" title="Logged in as"></div>
-            <div class="bg-gray-700/70 backdrop-blur-2xl border border-white/5 rounded-xl">
-                <button id="mobile-import-button" class="w-full text-left p-4 text-blue-400 text-lg border-b border-black/10 dark:border-white/10">Import Bookmarks</button>
-                <button id="mobile-export-button" class="w-full text-left p-4 text-blue-400 text-lg border-b border-black/10 dark:border-white/10">Export Bookmarks</button>
-                <button id="mobile-drag-lock-button" class="w-full text-left p-4 text-blue-400 text-lg border-b border-black/10 dark:border-white/10">Unlock</button>
-                <!-- NEW: Mobile Sign Out Button -->
-                <button id="mobile-signout-button" class="w-full text-left p-4 text-red-500 text-lg border-b border-black/10 dark:border-white/10">Sign Out</button>
-                <button id="mobile-clear-all-button" class="w-full text-left p-4 text-red-500 text-lg">Clear All</button>
-            </div>
-            <button id="cancel-mobile-settings-menu" class="w-full p-4 bg-gray-700/70 backdrop-blur-2xl border border-white/5 rounded-xl text-lg text-blue-400 font-semibold">Cancel</button>
+            <button id="btn-cancel-action" class="w-full p-4 bg-gray-800/90 backdrop-blur-xl border border-white/10 rounded-2xl text-blue-400 font-bold active:bg-white/5">Cancel</button>
         </div>
     </div>
 
-    <!-- Confirm Delete Modal -->
-    <div id="delete-modal-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-xl z-50 flex items-center justify-center p-4 hidden animate-modal-in">
-        <div class="bg-gray-800/80 backdrop-blur-2xl border border-white/10 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-            <h2 id="delete-modal-title" class="text-xl font-semibold mb-2 text-white">Are you sure?</h2>
-            <p id="delete-modal-text" class="text-gray-300 mb-6">This action cannot be undone.</p>
-            <div class="flex justify-end space-x-3">
-                <button type="button" id="cancel-delete-modal" class="py-2 px-4 bg-gray-600 text-gray-100 hover:bg-gray-500 rounded-md transition-colors">Cancel</button>
-                <button type="button" id="confirm-delete-button" class="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors font-medium">Delete</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Confirm Clear All Modal -->
-    <div id="clear-all-modal-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-xl z-50 flex items-center justify-center p-4 hidden animate-modal-in">
-        <div class="bg-gray-800/80 backdrop-blur-2xl border border-white/10 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-            <h2 class="text-xl font-semibold mb-2 text-white">Delete Everything?</h2>
-            <p class="text-gray-300 mb-6">All your folders and links will be permanently deleted from your account. This action cannot be undone.</p>
-            <div class="flex justify-end space-x-3">
-                <button type="button" id="cancel-clear-all-modal" class="py-2 px-4 bg-gray-600 text-gray-100 hover:bg-gray-500 rounded-md transition-colors">Cancel</button>
-                <button type="button" id="confirm-clear-all-button" class="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors font-medium">Delete All</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Input Modal (for Add/Edit) -->
-    <div id="input-modal-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-xl z-50 flex items-center justify-center p-4 hidden animate-modal-in">
-        <div class="bg-gray-800/80 backdrop-blur-2xl border border-white/10 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-            <h2 id="input-modal-title" class="text-xl font-semibold mb-4 text-white">Modal Title</h2>
-            <form id="input-form">
-                <div class="space-y-4">
-                    <div>
-                        <label for="item-name" class="block text-sm font-medium text-gray-300 mb-1">Name</label>
-                        <input type="text" id="item-name" class="w-full bg-gray-700 text-white rounded-md p-3 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                    </div>
-                    <div id="url-input-group">
-                        <label for="item-url" class="block text-sm font-medium text-gray-300 mb-1">URL</label>
-                        <input type="url" id="item-url" placeholder="https://example.com" class="w-full bg-gray-700 text-white rounded-md p-3 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" required>
-                    </div>
-                    <!-- "Upload Custom Icon" field -->
-                    <div id="icon-upload-group" style="display: none;">
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="block text-sm font-medium text-gray-300">Custom Icon</label>
-                            <button type="button" id="reset-icon-button" class="text-sm text-red-400 hover:text-red-500 transition-colors">Reset to Default</button>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <label for="item-icon-upload" class="flex-1 w-full text-center py-2 px-4 bg-gray-600 text-gray-100 hover:bg-gray-500 rounded-md transition-colors cursor-pointer">
-                                Upload Icon
-                            </label>
-                            <input type="file" id="item-icon-upload" accept="image/*" class="visually-hidden-file-input">
-                            <img id="icon-upload-preview" src="" alt="Icon Preview" class="w-10 h-10 rounded-lg hidden object-cover">
-                        </div>
-                        <p class="text-xs text-gray-400 mt-1">Or paste an Icon URL below:</p>
-                        <input type="url" id="item-icon-url" placeholder="https://example.com/icon.png" class="w-full bg-gray-700 text-white rounded-md p-3 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none mt-1">
+    <!-- Mobile Settings Menu -->
+    <div id="settings-menu-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden"></div>
+    <div id="settings-menu" class="fixed bottom-0 left-0 right-0 z-[51] p-4 transform translate-y-full transition-transform duration-300">
+        <div class="max-w-md mx-auto space-y-3">
+            <div class="bg-gray-800/90 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+                <div class="p-4 border-b border-white/5 flex items-center gap-3">
+                    <img id="mobile-user-avatar" src="" class="w-8 h-8 rounded-full">
+                    <div class="overflow-hidden">
+                        <p id="mobile-user-name" class="text-sm font-semibold text-white truncate">User</p>
+                        <p id="mobile-user-email" class="text-xs text-gray-400 truncate">email@example.com</p>
                     </div>
                 </div>
-                <div class="flex justify-end space-x-3 mt-6">
-                    <button type="button" id="cancel-input-modal" class="py-2 px-4 bg-gray-600 text-gray-100 hover:bg-gray-500 rounded-md transition-colors">Cancel</button>
-                    <button type="submit" id="confirm-input-modal" class="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors font-medium">Confirm</button>
+                <button id="mobile-lock-btn" class="w-full text-left p-4 text-gray-200 font-medium border-b border-white/5 active:bg-white/5 flex justify-between">
+                    <span>Lock Dragging</span>
+                    <i data-lucide="lock" class="w-4 h-4"></i>
+                </button>
+                <button id="mobile-logout-btn" class="w-full text-left p-4 text-red-500 font-medium active:bg-white/5">Sign Out</button>
+            </div>
+            <button id="btn-cancel-settings" class="w-full p-4 bg-gray-800/90 backdrop-blur-xl border border-white/10 rounded-2xl text-blue-400 font-bold active:bg-white/5">Done</button>
+        </div>
+    </div>
+
+    <!-- Input Modal (Center) -->
+    <div id="input-modal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="input-modal-bg"></div>
+        <div class="relative bg-gray-800 border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-modal-in">
+            <h2 id="input-title" class="text-xl font-bold mb-4">Add Item</h2>
+            <form id="input-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">Name</label>
+                    <input type="text" id="input-name" class="w-full bg-black/20 text-white rounded-lg p-3 border border-white/10 focus:border-blue-500 outline-none transition-colors" placeholder="My Bookmark">
+                </div>
+                <div id="url-group">
+                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-1">URL</label>
+                    <input type="url" id="input-url" class="w-full bg-black/20 text-white rounded-lg p-3 border border-white/10 focus:border-blue-500 outline-none transition-colors" placeholder="https://google.com">
+                </div>
+                <!-- Icon Picker -->
+                <div id="icon-group" class="flex items-center gap-3 pt-2">
+                    <div class="relative group cursor-pointer w-12 h-12 flex-shrink-0" id="icon-preview-click">
+                        <img id="input-icon-preview" src="" class="w-12 h-12 rounded-xl bg-white/5 object-cover border border-white/10">
+                        <div class="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i data-lucide="upload" class="w-4 h-4 text-white"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-xs text-gray-400 mb-1">Icon (Auto-fetched or Click to Upload)</p>
+                        <button type="button" id="btn-reset-icon" class="text-xs text-blue-400 hover:text-blue-300">Reset to default</button>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" id="btn-cancel-input" class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                    <button type="submit" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium">Save</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- Move Modal -->
-    <div id="move-modal-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-xl z-50 flex items-center justify-center p-4 hidden animate-modal-in">
-        <div class="bg-gray-800/80 backdrop-blur-2xl border border-white/10 rounded-xl p-6 w-full max-w-sm shadow-2xl flex flex-col" style="height: 70vh; max-height: 500px;">
-            <h2 class="text-xl font-semibold mb-4 text-white">Move to...</h2>
-            <div id="move-breadcrumbs" class="flex items-center space-x-1 overflow-x-auto whitespace-nowrap pb-3 border-b border-gray-700 mb-3">
-                <!-- Move breadcrumbs injected here -->
-            </div>
-            <div id="move-folder-list" class="flex-1 overflow-y-auto folder-list -mr-2 pr-2">
-                <!-- Folder list will be injected here -->
-            </div>
-            <div class="flex justify-end space-x-3 mt-6">
-                <button type="button" id="cancel-move-modal" class="py-2 px-4 bg-gray-600 text-gray-100 hover:bg-gray-500 rounded-md transition-colors">Cancel</button>
-                <button type="button" id="confirm-move-button" class="py-2 px.4 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors font-medium">Move Here</button>
+    <div id="move-modal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="move-modal-bg"></div>
+        <div class="relative bg-gray-800 border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-modal-in flex flex-col max-h-[70vh]">
+            <h2 class="text-xl font-bold mb-4">Move to...</h2>
+            <div id="move-breadcrumbs" class="flex items-center space-x-1 overflow-x-auto whitespace-nowrap pb-3 border-b border-white/10 mb-2 text-sm text-gray-400"></div>
+            <div id="move-list" class="flex-1 overflow-y-auto folder-list min-h-[150px]"></div>
+            <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-white/10">
+                <button type="button" id="btn-cancel-move" class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                <button type="button" id="btn-confirm-move" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium">Move Here</button>
             </div>
         </div>
     </div>
 
-    <!-- Notification Toast -->
-    <div id="notification-toast" class="fixed top-20 right-5 bg-green-600 text-white py-3 px-5 rounded-lg shadow-lg transform translate-x-[200%] transition-transform duration-300 ease-out z-[999]">
-        <p id="notification-message">Success!</p>
+    <!-- Toast -->
+    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 bg-gray-800 border border-white/10 text-white py-2 px-6 rounded-full shadow-2xl transform -translate-y-[200%] transition-transform duration-300 z-[9999] flex items-center gap-2">
+        <i data-lucide="check-circle" class="w-4 h-4 text-green-500"></i>
+        <span id="toast-msg" class="text-sm font-medium">Done</span>
     </div>
 
-    <!-- Main App Logic -->
+    <!-- Firebase SDKs -->
     <script type="module">
-        // --- Firebase SDKs (from window) ---
-        const { 
-            initializeApp 
-        } = window.firebase;
-        const { 
-            getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut 
-        } = window.firebase;
-        const { 
-            getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, 
-            onSnapshot, collection, query, where, writeBatch, getDocs, setLogLevel 
-        } = window.firebase;
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, writeBatch, enableIndexedDbPersistence, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-        // --- App State ---
-        const DRAG_LOCK_KEY = 'bookmarkLibraryDragLock'; 
-        
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyA8Bsa_MPuz_2BtlC-k4pwyvEOFxcIIfKs",
+            authDomain: "my-bookmark-app-1fe39.firebaseapp.com",
+            projectId: "my-bookmark-app-1fe39",
+            storageBucket: "my-bookmark-app-1fe39.firebasestorage.app",
+            messagingSenderId: "1014980538022",
+            appId: "1:1014980538022:web:810f2eae78c2423271ce67"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Enable Offline Persistence
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.warn('Persistence failed: Multiple tabs open');
+            } else if (err.code == 'unimplemented') {
+                console.warn('Persistence not supported by browser');
+            }
+        });
+
+        // --- STATE & VARS ---
+        let currentUser = null;
+        let localItems = {}; // Local cache of Firestore data
         let currentFolderId = "root";
         let breadcrumbs = [{ id: "root", name: "Home" }];
-        let lucideLoaded = false;
-        let isDragLocked = true; 
+        let selectedItem = null;
+        let isDragLocked = true;
+        let moveTargetId = "root";
+        let moveCrumbPath = [{ id: "root", name: "Home" }];
+        let sortableInstance = null;
+        let unsubscribeSnapshot = null;
 
-        let selectedItem = { id: null, parentId: null, name: null, url: null, type: null, favicon: null };
-        let moveModalTargetFolderId = "root";
-        let moveModalBreadcrumbs = [{ id: "root", name: "Home" }];
-        
-        window.sortableInstance = null;
-        
-        // --- NEW: Firebase State ---
-        let app, db, auth, userId;
-        let itemsCollectionRef = null; // Will be set after auth
-        let currentFolderListener = null; // Unsubscribe function for onSnapshot
-        let allItemsCache = {}; // Replaces getAllItems() for immediate access
-        
-        // --- YOUR FIREBASE CONFIG ---
-        // This is the config you provided.
-        const firebaseConfig = {
-          apiKey: "AIzaSyA8Bsa_MPuz_2BtlC-k4pwyvEOFxcIIfKs",
-          authDomain: "my-bookmark-app-1fe39.firebaseapp.com",
-          projectId: "my-bookmark-app-1fe39",
-          storageBucket: "my-bookmark-app-1fe39.appspot.com",
-          messagingSenderId: "1014980538022",
-          appId: "1:1014980538022:web:810f2eae78c2423271ce67"
+        // --- DOM REFERENCES ---
+        const els = {
+            loginOverlay: document.getElementById('login-overlay'),
+            appContainer: document.getElementById('app-container'),
+            googleBtn: document.getElementById('google-signin-btn'),
+            loginStatus: document.getElementById('login-status'),
+            spinner: document.getElementById('loading-spinner'),
+            itemsGrid: document.getElementById('items-grid'),
+            breadcrumbs: document.getElementById('breadcrumbs-container'),
+            emptyState: document.getElementById('empty-state'),
+            userAvatar: document.getElementById('user-avatar'),
+            userName: document.getElementById('user-name'),
+            mobileAvatar: document.getElementById('mobile-user-avatar'),
+            mobileName: document.getElementById('mobile-user-name'),
+            mobileEmail: document.getElementById('mobile-user-email'),
+            logoutBtn: document.getElementById('logout-btn'),
+            mobileLogoutBtn: document.getElementById('mobile-logout-btn'),
+            fab: document.getElementById('fab-add'),
+            desktopLock: document.getElementById('desktop-lock-btn'),
+            mobileLock: document.getElementById('mobile-lock-btn'),
+            mobileMenuBtn: document.getElementById('mobile-menu-btn'),
+            
+            // Modals
+            addMenu: document.getElementById('add-menu'),
+            addOverlay: document.getElementById('add-menu-overlay'),
+            actionMenu: document.getElementById('action-menu'),
+            actionOverlay: document.getElementById('action-menu-overlay'),
+            settingsMenu: document.getElementById('settings-menu'),
+            settingsOverlay: document.getElementById('settings-menu-overlay'),
+            inputModal: document.getElementById('input-modal'),
+            inputModalBg: document.getElementById('input-modal-bg'),
+            moveModal: document.getElementById('move-modal'),
+            moveModalBg: document.getElementById('move-modal-bg'),
+            
+            // Form
+            inputForm: document.getElementById('input-form'),
+            inputName: document.getElementById('input-name'),
+            inputUrl: document.getElementById('input-url'),
+            inputPreview: document.getElementById('input-icon-preview'),
+            iconFile: document.getElementById('icon-file-input'),
+            
+            // Buttons
+            btnAddLink: document.getElementById('btn-add-link'),
+            btnAddFolder: document.getElementById('btn-add-folder'),
+            btnEdit: document.getElementById('btn-edit'),
+            btnMove: document.getElementById('btn-move'),
+            btnDelete: document.getElementById('btn-delete'),
+            btnResetIcon: document.getElementById('btn-reset-icon')
         };
-        // --- END OF CONFIG ---
 
+        // --- AUTHENTICATION ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                els.loginStatus.textContent = "Success! Loading data...";
+                els.userAvatar.src = user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`;
+                els.userName.textContent = user.displayName;
+                els.mobileAvatar.src = els.userAvatar.src;
+                els.mobileName.textContent = user.displayName;
+                els.mobileEmail.textContent = user.email;
 
-        // --- DOM Elements ---
-        const authScreen = document.getElementById('auth-screen'); // Renamed
-        const authStatus = document.getElementById('auth-status');
-        const loadingSpinnerIcon = document.getElementById('loading-spinner-icon'); // The spinner itself
-        const googleSigninButton = document.getElementById('google-signin-button');
-        
-        const appContainer = document.getElementById('app-container');
-        const breadcrumbsContainer = document.getElementById('breadcrumbs-container');
-        const itemsGrid = document.getElementById('items-grid');
-        const emptyFolderMessage = document.getElementById('empty-folder-message');
-        const addButton = document.getElementById('add-button');
-        const dragLockButton = document.getElementById('drag-lock-button');
-        const clearAllButton = document.getElementById('clear-all-button');
-        const clearAllModalOverlay = document.getElementById('clear-all-modal-overlay');
-        const cancelClearAllModal = document.getElementById('cancel-clear-all-modal');
-        const confirmClearAllButton = document.getElementById('confirm-clear-all-button');
-        const importButton = document.getElementById('import-button');
-        const exportButton = document.getElementById('export-button');
-        const importFileInput = document.getElementById('import-file-input');
-        
-        // NEW: Auth UI Elements
-        const userProfile = document.getElementById('user-profile');
-        const signoutButton = document.getElementById('signout-button');
+                // Migration Check: If firestore empty but localstorage has data
+                await checkAndMigrateData(user.uid);
 
-        // NEW Mobile Settings Elements
-        const mobileSettingsButton = document.getElementById('mobile-settings-button');
-        const mobileSettingsOverlay = document.getElementById('mobile-settings-overlay');
-        const mobileSettingsMenu = document.getElementById('mobile-settings-menu');
-        const mobileImportButton = document.getElementById('mobile-import-button');
-        const mobileExportButton = document.getElementById('mobile-export-button');
-        const mobileDragLockButton = document.getElementById('mobile-drag-lock-button');
-        const mobileClearAllButton = document.getElementById('mobile-clear-all-button');
-        const cancelMobileSettingsMenu = document.getElementById('cancel-mobile-settings-menu');
-        const mobileUserEmail = document.getElementById('mobile-user-email'); // Renamed
-        const mobileSignoutButton = document.getElementById('mobile-signout-button');
-
-        // Modals
-        const addMenuOverlay = document.getElementById('add-menu-overlay');
-        const addMenu = document.getElementById('add-menu');
-        const cancelAddMenu = document.getElementById('cancel-add-menu');
-        const addLinkButton = document.getElementById('add-link-button');
-        const addFolderButton = document.getElementById('add-folder-button');
-        const actionMenuOverlay = document.getElementById('action-menu-overlay');
-        const actionMenu = document.getElementById('action-menu');
-        const cancelActionMenu = document.getElementById('cancel-action-menu');
-        const editButton = document.getElementById('edit-button'); 
-        const moveButton = document.getElementById('move-button');
-        const deleteButton = document.getElementById('delete-button');
-        const deleteModalOverlay = document.getElementById('delete-modal-overlay');
-        const deleteModalTitle = document.getElementById('delete-modal-title');
-        const deleteModalText = document.getElementById('delete-modal-text');
-        const cancelDeleteModal = document.getElementById('cancel-delete-modal');
-        const confirmDeleteButton = document.getElementById('confirm-delete-button');
-        const inputModalOverlay = document.getElementById('input-modal-overlay');
-        const inputModalTitle = document.getElementById('input-modal-title');
-        const inputForm = document.getElementById('input-form');
-        const urlInputGroup = document.getElementById('url-input-group');
-        const itemNameInput = document.getElementById('item-name');
-        const itemUrlInput = document.getElementById('item-url');
-        const iconUploadGroup = document.getElementById('icon-upload-group'); 
-        const itemIconUrlInput = document.getElementById('item-icon-url');
-        const itemIconUploadInput = document.getElementById('item-icon-upload');
-        const iconUploadPreview = document.getElementById('icon-upload-preview');
-        const resetIconButton = document.getElementById('reset-icon-button'); 
-        const cancelInputModal = document.getElementById('cancel-input-modal');
-        const moveModalOverlay = document.getElementById('move-modal-overlay');
-        const moveBreadcrumbs = document.getElementById('move-breadcrumbs');
-        const moveFolderList = document.getElementById('move-folder-list');
-        const cancelMoveModal = document.getElementById('cancel-move-modal');
-        const confirmMoveButton = document.getElementById('confirm-move-button');
-        const notificationToast = document.getElementById('notification-toast');
-        const notificationMessage = document.getElementById('notification-message');
-        
-        // --- NEW: Firebase Initialization & Auth Handling ---
-        async function initializeFirebase() {
-            try {
-                // Check if the config has been filled
-                if (firebaseConfig.apiKey.includes("YOUR_API_KEY")) {
-                    throw new Error("Firebase config is missing. Please add your config to basic.html.");
-                }
-
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+                setupRealtimeListener(user.uid);
                 
-                // This is the main controller for the app's state
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        // --- USER IS SIGNED IN ---
-                        authStatus.textContent = 'Loading Library...';
-                        loadingSpinnerIcon.classList.remove('hidden');
-                        googleSigninButton.classList.add('hidden');
-                        
-                        userId = user.uid;
-                        
-                        // Set the collection reference for all other functions
-                        // This ensures data is saved to the *correct user's* private store
-                        // We use the `appId` from your config to build the path.
-                        itemsCollectionRef = collection(db, "artifacts", firebaseConfig.appId, "users", userId, "items");
-                        
-                        // Update UI with user info
-                        userProfile.innerHTML = `
-                            <img src="${user.photoURL}" alt="Profile" class="w-8 h-8 rounded-full">
-                            <span class="text-sm font-medium text-white hidden md:block">${user.displayName}</span>
-                        `;
-                        userProfile.classList.remove('hidden');
-                        signoutButton.classList.remove('hidden');
-                        mobileUserEmail.textContent = user.email;
-                        
-                        // Initialize the app (load data, etc.)
-                        await initializeAppContainer();
-                        
-                        // Show the app and hide the auth screen
-                        appContainer.classList.remove('hidden');
-                        authScreen.classList.add('hidden');
+                // Transition UI
+                setTimeout(() => {
+                    els.loginOverlay.classList.add('hidden');
+                    els.appContainer.classList.remove('hidden');
+                    lucide.createIcons();
+                }, 500);
+            } else {
+                currentUser = null;
+                localItems = {};
+                if (unsubscribeSnapshot) unsubscribeSnapshot();
+                els.loginOverlay.classList.remove('hidden');
+                els.appContainer.classList.add('hidden');
+                els.loginStatus.textContent = "";
+            }
+        });
 
-                    } else {
-                        // --- USER IS SIGNED OUT ---
-                        userId = null;
-                        itemsCollectionRef = null;
-                        
-                        // Stop listening to old data
-                        if (currentFolderListener) {
-                            currentFolderListener();
-                            currentFolderListener = null;
-                        }
-                        
-                        // Show the auth screen and hide the app
-                        appContainer.classList.add('hidden');
-                        authScreen.classList.remove('hidden');
-                        
-                        // Reset UI elements
-                        authStatus.textContent = 'Sign in to sync your bookmarks.';
-                        loadingSpinnerIcon.classList.add('hidden');
-                        googleSigninButton.classList.remove('hidden');
-                        userProfile.classList.add('hidden');
-                        signoutButton.classList.add('hidden');
+        els.googleBtn.onclick = async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                els.loginStatus.textContent = "Connecting to Google...";
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error(error);
+                els.loginStatus.textContent = "Login failed: " + error.message;
+            }
+        };
+
+        const handleLogout = () => {
+            if(confirm("Sign out?")) signOut(auth);
+        };
+        els.logoutBtn.onclick = handleLogout;
+        els.mobileLogoutBtn.onclick = handleLogout;
+
+        // --- FIRESTORE SYNC ---
+        function setupRealtimeListener(uid) {
+            const colRef = collection(db, 'users', uid, 'items');
+            unsubscribeSnapshot = onSnapshot(colRef, (snapshot) => {
+                let changes = false;
+                snapshot.docChanges().forEach((change) => {
+                    const data = change.doc.data();
+                    if (change.type === "added" || change.type === "modified") {
+                        localItems[change.doc.id] = data;
                     }
+                    if (change.type === "removed") {
+                        delete localItems[change.doc.id];
+                    }
+                    changes = true;
                 });
                 
-            } catch (error) {
-                console.error("Error initializing Firebase:", error);
-                authStatus.textContent = `Error: ${error.message}`;
-                googleSigninButton.classList.add('hidden');
-                loadingSpinnerIcon.classList.add('hidden');
-            }
-        }
-
-
-        // --- Drag Lock Functions (Text-based) ---
-        function applyDragLockState(isLocked) {
-            const text = isLocked ? "Unlock" : "Lock";
-            dragLockButton.textContent = text; 
-            mobileDragLockButton.textContent = text; // Sync mobile button
-            if (window.sortableInstance) {
-                window.sortableInstance.option("disabled", isLocked);
-            }
-        }
-        function toggleDragLock() {
-            isDragLocked = !isDragLocked;
-            localStorage.setItem(DRAG_LOCK_KEY, isDragLocked.toString()); 
-            applyDragLockState(isDragLocked);
-        }
-        function initializeDragLock() {
-            isDragLocked = localStorage.getItem(DRAG_LOCK_KEY) !== 'false';
-            applyDragLockState(isDragLocked); 
-            dragLockButton.onclick = toggleDragLock;
-            mobileDragLockButton.onclick = () => {
-                toggleDragLock();
-                closeMobileSettingsMenu();
-            };
-        }
-
-        // --- Utility Functions ---
-        function showNotification(message, isError = false) {
-            notificationMessage.textContent = message;
-            notificationToast.classList.toggle('bg-green-600', !isError);
-            notificationToast.classList.toggle('bg-red-500', isError);
-            notificationToast.classList.remove('translate-x-[200%]');
-            notificationToast.classList.add('translate-x-0');
-            setTimeout(() => {
-                notificationToast.classList.remove('translate-x-0');
-                notificationToast.classList.add('translate-x-[200%]');
-            }, 3000);
-        }
-        
-        function getDomainFromUrl(url) {
-            try {
-                let fullUrl = url;
-                if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
-                    fullUrl = 'https://' + fullUrl;
+                if (changes) {
+                    renderCurrentView();
                 }
-                const hostname = new URL(fullUrl).hostname;
-                return hostname.replace(/^www\./, '');
-            } catch (error) {
-                console.warn("Invalid URL for favicon:", url);
-                return "example.com";
+            }, (error) => {
+                console.error("Sync error:", error);
+            });
+        }
+
+        // --- MIGRATION UTILS ---
+        async function checkAndMigrateData(uid) {
+            const oldData = localStorage.getItem('bookmarkLibraryItems');
+            if (!oldData) return;
+
+            // Check if user already has data in cloud
+            const q = query(collection(db, 'users', uid, 'items'), where('parentId', '==', 'root'));
+            const snap = await getDocs(q);
+            
+            if (snap.empty) {
+                const doImport = confirm("We found local bookmarks. Would you like to upload them to your account?");
+                if (doImport) {
+                    els.spinner.classList.remove('hidden');
+                    try {
+                        const items = JSON.parse(oldData);
+                        const batch = writeBatch(db);
+                        let count = 0;
+                        
+                        // Batches are limited to 500
+                        const entries = Object.values(items);
+                        const chunkArray = (arr, size) => arr.length > size ? [arr.slice(0, size), ...chunkArray(arr.slice(size), size)] : [arr];
+                        const chunks = chunkArray(entries, 450);
+
+                        for (const chunk of chunks) {
+                            const newBatch = writeBatch(db);
+                            chunk.forEach(item => {
+                                const docRef = doc(db, 'users', uid, 'items', item.id);
+                                newBatch.set(docRef, item);
+                            });
+                            await newBatch.commit();
+                        }
+                        
+                        localStorage.removeItem('bookmarkLibraryItems'); // Clear local
+                        showToast("Migration successful!");
+                    } catch (e) {
+                        console.error(e);
+                        alert("Migration failed: " + e.message);
+                    }
+                    els.spinner.classList.add('hidden');
+                }
             }
         }
-        
-        function resizeAndEncode(file) {
-            return new Promise((resolve, reject) => {
+
+        // --- RENDER LOGIC ---
+        function getSortedItems(parentId) {
+            const items = Object.values(localItems).filter(i => i.parentId === parentId);
+            return items.sort((a, b) => (a.order || 0) - (b.order || 0));
+        }
+
+        function renderCurrentView() {
+            // Verify current folder exists (handling deletion from other device)
+            if (currentFolderId !== 'root' && !localItems[currentFolderId]) {
+                navigateTo('root');
+                return;
+            }
+
+            // Breadcrumbs
+            els.breadcrumbs.innerHTML = '';
+            breadcrumbs.forEach((crumb, idx) => {
+                const isLast = idx === breadcrumbs.length - 1;
+                const btn = document.createElement('button');
+                btn.className = `px-2 py-1 rounded text-sm font-medium transition-colors ${isLast ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`;
+                btn.textContent = crumb.name;
+                if (!isLast) btn.onclick = () => navigateBack(idx);
+                els.breadcrumbs.appendChild(btn);
+                
+                if (!isLast) {
+                    const sep = document.createElement('i');
+                    sep.setAttribute('data-lucide', 'chevron-right');
+                    sep.className = "w-4 h-4 text-gray-600";
+                    els.breadcrumbs.appendChild(sep);
+                }
+            });
+
+            // Grid
+            const items = getSortedItems(currentFolderId);
+            els.itemsGrid.innerHTML = '';
+            
+            if (items.length === 0) {
+                els.emptyState.classList.replace('hidden', 'flex');
+            } else {
+                els.emptyState.classList.replace('flex', 'hidden');
+                items.forEach(item => {
+                    const el = createItemElement(item);
+                    els.itemsGrid.appendChild(el);
+                });
+            }
+
+            lucide.createIcons();
+            initSortable();
+        }
+
+        function createItemElement(item) {
+            const div = document.createElement('div');
+            div.className = `group relative flex flex-col items-center ${item.type === 'folder' ? 'col-span-2 row-span-2' : 'col-span-1 row-span-1'}`;
+            div.dataset.id = item.id;
+
+            const innerClass = "w-full aspect-square rounded-2xl bg-gray-800 border border-white/5 shadow-lg overflow-hidden transition-transform active:scale-95 group-hover:border-white/20 relative";
+            
+            let content = '';
+            if (item.type === 'folder') {
+                content = `
+                    <div class="${innerClass} p-2 grid grid-cols-2 grid-rows-2 gap-1 cursor-pointer" onclick="app.openFolder('${item.id}')">
+                        ${renderFolderPreview(item.id)}
+                    </div>
+                `;
+            } else {
+                content = `
+                    <a href="${item.url}" target="_blank" class="${innerClass} block bg-white">
+                        <img src="${item.favicon}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100/222/fff?text=${item.name[0]}'"/>
+                    </a>
+                `;
+            }
+
+            // Option button
+            const optBtn = `
+                <button onclick="app.openOptions('${item.id}', event)" class="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/80">
+                    <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+                </button>
+            `;
+
+            div.innerHTML = content + `<span class="mt-2 text-xs text-center text-gray-300 truncate w-full px-1 select-none">${item.name}</span>` + optBtn;
+            return div;
+        }
+
+        function renderFolderPreview(folderId) {
+            const children = getSortedItems(folderId).slice(0, 4);
+            let html = '';
+            for (let i=0; i<4; i++) {
+                const child = children[i];
+                if (child) {
+                    if (child.type === 'folder') {
+                        html += `<div class="bg-white/10 rounded-md"></div>`;
+                    } else {
+                        html += `<img src="${child.favicon}" class="w-full h-full object-cover rounded-md bg-gray-900">`;
+                    }
+                } else {
+                    html += `<div class="bg-transparent"></div>`;
+                }
+            }
+            return html;
+        }
+
+        // --- NAVIGATION ---
+        function navigateTo(folderId) {
+            if (folderId === 'root') {
+                breadcrumbs = [{ id: 'root', name: 'Home' }];
+            } else {
+                const folder = localItems[folderId];
+                if (folder) breadcrumbs.push({ id: folder.id, name: folder.name });
+            }
+            currentFolderId = folderId;
+            renderCurrentView();
+        }
+
+        function navigateBack(index) {
+            breadcrumbs = breadcrumbs.slice(0, index + 1);
+            currentFolderId = breadcrumbs[breadcrumbs.length - 1].id;
+            renderCurrentView();
+        }
+
+        window.app = {
+            openFolder: (id) => navigateTo(id),
+            openOptions: (id, e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                selectedItem = localItems[id];
+                openMenu(els.actionMenu, els.actionOverlay);
+            }
+        };
+
+        // --- CRUD OPERATIONS (Cloud) ---
+        async function addItem(name, url, type, iconData) {
+            const id = crypto.randomUUID();
+            const order = getSortedItems(currentFolderId).length;
+            
+            let favicon = iconData;
+            if (type === 'link' && !favicon) {
+                // Fetch default icon
+                try {
+                    const domain = new URL(url).hostname;
+                    favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+                    // Convert to base64 via proxy to avoid CORs in future reads? 
+                    // For simplicity in this version, we store the URL. 
+                    // Or we can use the fetchAndEncode helper from original code.
+                    const b64 = await fetchIconBase64(favicon);
+                    if(b64) favicon = b64;
+                } catch(e) {
+                    favicon = `https://placehold.co/128/333/fff?text=${name[0]}`;
+                }
+            }
+
+            const item = {
+                id,
+                parentId: currentFolderId,
+                name,
+                type,
+                order,
+                createdAt: Date.now()
+            };
+
+            if (type === 'link') {
+                item.url = url.startsWith('http') ? url : `https://${url}`;
+                item.favicon = favicon;
+            }
+
+            // Optimistic Update (optional, but snapshot handles it fast enough usually)
+            try {
+                await setDoc(doc(db, 'users', currentUser.uid, 'items', id), item);
+                showToast("Added");
+            } catch (e) {
+                alert("Error adding: " + e.message);
+            }
+        }
+
+        async function updateItem(id, updates) {
+            try {
+                // Handle Icon update if passed
+                if (updates.newIconFile) {
+                    updates.favicon = await resizeImage(updates.newIconFile);
+                    delete updates.newIconFile;
+                } else if (updates.resetIcon && updates.url) {
+                     const domain = new URL(updates.url).hostname;
+                     const b64 = await fetchIconBase64(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
+                     updates.favicon = b64;
+                     delete updates.resetIcon;
+                }
+                
+                await updateDoc(doc(db, 'users', currentUser.uid, 'items', id), updates);
+                showToast("Updated");
+            } catch(e) {
+                alert("Update failed");
+            }
+        }
+
+        async function deleteItemRecursive(id) {
+            if (!confirm("Delete this item?")) return;
+            
+            const batch = writeBatch(db);
+            const toDelete = [id];
+            
+            // Simple recursive finder
+            const findChildren = (pid) => {
+                const children = Object.values(localItems).filter(i => i.parentId === pid);
+                children.forEach(c => {
+                    toDelete.push(c.id);
+                    if(c.type === 'folder') findChildren(c.id);
+                });
+            };
+            findChildren(id);
+
+            toDelete.forEach(itemId => {
+                batch.delete(doc(db, 'users', currentUser.uid, 'items', itemId));
+            });
+
+            try {
+                await batch.commit();
+                showToast("Deleted");
+            } catch(e) {
+                alert("Delete failed");
+            }
+        }
+
+        async function moveItem(itemId, newParentId) {
+            if(itemId === newParentId) return;
+            try {
+                await updateDoc(doc(db, 'users', currentUser.uid, 'items', itemId), {
+                    parentId: newParentId,
+                    order: 9999 // push to end
+                });
+                showToast("Moved");
+            } catch(e) { console.error(e); }
+        }
+
+        // --- SORTING ---
+        function initSortable() {
+            if (sortableInstance) sortableInstance.destroy();
+            sortableInstance = new Sortable(els.itemsGrid, {
+                animation: 150,
+                delay: 100,
+                delayOnTouchOnly: true,
+                disabled: isDragLocked,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                onEnd: async (evt) => {
+                    const itemEls = Array.from(els.itemsGrid.children);
+                    const batch = writeBatch(db);
+                    let changed = false;
+
+                    itemEls.forEach((el, index) => {
+                        const id = el.dataset.id;
+                        if (localItems[id].order !== index) {
+                            const ref = doc(db, 'users', currentUser.uid, 'items', id);
+                            batch.update(ref, { order: index });
+                            changed = true;
+                        }
+                    });
+
+                    if (changed) batch.commit();
+                }
+            });
+        }
+
+        // --- UI HELPERS ---
+        function openMenu(menu, overlay) {
+            overlay.classList.remove('hidden');
+            menu.classList.remove('translate-y-full');
+        }
+        function closeMenu(menu, overlay) {
+            menu.classList.add('translate-y-full');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+        function showToast(msg) {
+            document.getElementById('toast-msg').textContent = msg;
+            const t = document.getElementById('toast');
+            t.classList.remove('-translate-y-[200%]');
+            setTimeout(() => t.classList.add('-translate-y-[200%]'), 2000);
+        }
+
+        // --- IMAGE HELPERS ---
+        function resizeImage(file) {
+            return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = new Image();
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        canvas.width = 128;
-                        canvas.height = 128;
+                        canvas.width = 128; canvas.height = 128;
                         const ctx = canvas.getContext('2d');
-                        ctx.fillStyle = 'transparent';
-                        ctx.fillRect(0, 0, 128, 128);
                         
-                        const inRatio = img.width / img.height;
-                        const outRatio = 1 / 1;
-                        
-                        let drawWidth = 128;
-                        let drawHeight = 128;
-                        let dx = 0;
-                        let dy = 0;
-
-                        if (inRatio > outRatio) { 
-                            drawWidth = 128 * inRatio;
-                            dx = -(drawWidth - 128) / 2;
-                        } else { 
-                            drawHeight = 128 / inRatio;
-                            dy = -(drawHeight - 128) / 2;
-                        }
-                        
-                        ctx.drawImage(img, dx, dy, drawWidth, drawHeight);
+                        // Cover fit
+                        const ratio = Math.max(128/img.width, 128/img.height);
+                        const w = img.width * ratio;
+                        const h = img.height * ratio;
+                        ctx.drawImage(img, (128-w)/2, (128-h)/2, w, h);
                         resolve(canvas.toDataURL('image/png'));
                     };
-                    img.onerror = reject;
                     img.src = e.target.result;
                 };
-                reader.onerror = reject;
                 reader.readAsDataURL(file);
             });
         }
         
-        async function fetchAndEncodeIcon(url) {
-            // Using a proxy to bypass CORS issues when fetching icons
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        async function fetchIconBase64(url) {
             try {
-                const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error('Icon fetch failed');
-                
-                const blob = await response.blob();
-                
-                const file = new File([blob], "favicon.png", { type: blob.type });
-                const base64data = await resizeAndEncode(file);
-                return base64data;
-            } catch (error) {
-                console.error("Error fetching or encoding icon:", error);
-                return null; 
-            }
+                const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+                const blob = await res.blob();
+                return new Promise(r => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => r(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            } catch(e) { return null; }
         }
 
-        function renderIcon(name, classList = "w-6 h-6") {
-            if (!lucideLoaded || typeof lucide === 'undefined' || !lucide.icons[name]) {
-                let content = '...';
-                if (name === 'chevron-right') content = '>';
-                else if (name === 'folder' || name === 'folder-open') content = '■';
-                else if (name === 'plus') content = '+';
-                else if (name === 'settings') content = '...'; // Simple text for settings
-                return `<div class="${classList} flex items-center justify-center text-gray-400 font-bold text-lg">${content}</div>`;
-            }
-            const icon = lucide.icons[name];
-            const [tag, attrs, children] = icon;
-            return `
-                <svg xmlns="http://www.w3.org/2000/svg" class="${classList}" ${Object.entries(attrs).map(([key, value]) => `${key}="${value}"`).join(' ')}>
-                    ${children.map(([childTag, childAttrs]) => `<${childTag} ${Object.entries(childAttrs).map(([key, value]) => `${key}="${value}"`).join(' ')} />`).join('')}
-                </svg>
-            `;
-        }
+        // --- EVENT BINDINGS ---
         
-        // --- Render Functions ---
-        function renderBreadcrumbs() {
-            breadcrumbsContainer.innerHTML = '';
-            breadcrumbs.forEach((crumb, index) => {
-                const isLast = index === breadcrumbs.length - 1;
-                const crumbEl = document.createElement('div');
-                crumbEl.className = `flex items-center space-x-1`;
-                const button = document.createElement('button');
-                button.textContent = crumb.name;
-                button.className = `text-lg font-medium rounded-md px-2 py-1 transition-colors ${isLast ? 'text-white' : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'}`;
-                if (!isLast) {
-                    button.onclick = () => navigateToFolder(crumb.id, index);
-                }
-                crumbEl.appendChild(button);
-                if (!isLast) {
-                    const separator = document.createElement('span');
-                    separator.className = "text-gray-500 text-lg";
-                    separator.innerHTML = renderIcon('chevron-right', 'w-5 h-5');
-                    crumbEl.appendChild(separator);
-                }
-                breadcrumbsContainer.appendChild(crumbEl);
-            });
-            
-            if (lucideLoaded) {
-                lucide.createIcons();
-            }
-            breadcrumbsContainer.scrollLeft = breadcrumbsContainer.scrollWidth;
-        }
+        // FAB & Menus
+        els.fab.onclick = () => openMenu(els.addMenu, els.addOverlay);
+        els.addOverlay.onclick = () => closeMenu(els.addMenu, els.addOverlay);
+        els.actionOverlay.onclick = () => closeMenu(els.actionMenu, els.actionOverlay);
+        els.btnCancelSettings = document.getElementById('btn-cancel-settings');
+        els.btnCancelSettings.onclick = () => closeMenu(els.settingsMenu, els.settingsOverlay);
+        els.settingsOverlay.onclick = () => closeMenu(els.settingsMenu, els.settingsOverlay);
+        
+        document.getElementById('btn-cancel-add').onclick = () => closeMenu(els.addMenu, els.addOverlay);
+        document.getElementById('btn-cancel-action').onclick = () => closeMenu(els.actionMenu, els.actionOverlay);
 
-        function renderItems(items) {
-            itemsGrid.innerHTML = '';
+        // Mobile Menu
+        els.mobileMenuBtn.onclick = () => openMenu(els.settingsMenu, els.settingsOverlay);
+
+        // Add Logic
+        const openInput = (mode, type) => {
+            els.inputForm.reset();
+            els.inputModal.classList.remove('hidden');
+            document.getElementById('input-title').textContent = mode === 'add' ? `Add ${type === 'link'?'Link':'Folder'}` : 'Edit Item';
             
-            if (items.length === 0) {
-                emptyFolderMessage.classList.remove('hidden');
-                emptyFolderMessage.classList.add('flex');
-            } else {
-                emptyFolderMessage.classList.add('hidden');
-                emptyFolderMessage.classList.remove('flex');
+            const isLink = type === 'link' || (selectedItem && selectedItem.type === 'link');
+            document.getElementById('url-group').style.display = isLink ? 'block' : 'none';
+            document.getElementById('icon-group').style.display = isLink ? 'flex' : 'none';
+            els.inputPreview.src = '';
+
+            if (mode === 'edit') {
+                els.inputName.value = selectedItem.name;
+                if(isLink) {
+                    els.inputUrl.value = selectedItem.url;
+                    els.inputPreview.src = selectedItem.favicon;
+                }
             }
 
-            items.forEach(item => {
-                const itemEl = document.createElement('div');
-                itemEl.dataset.id = item.id;
-                itemEl.className = "flex flex-col items-center group relative cursor-grab active:cursor-grabbing"; 
-                const iconWrapper = document.createElement('div');
-                iconWrapper.className = "w-full aspect-square relative"; 
-                const wrapper = document.createElement('div');
-                wrapper.className = "w-full h-full"; 
-                const fallbackChar = item.name.charAt(0).toUpperCase() || '?';
-                const darkPlaceholder = `https://placehold.co/128/374151/9CA3AF?text=${fallbackChar}&font=inter`;
-                const placeholder = `this.src='${darkPlaceholder}'`;
+            els.inputForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const name = els.inputName.value;
+                const url = els.inputUrl.value;
+                const file = els.iconFile.files[0];
 
-                if (item.type === 'link') {
-                    itemEl.classList.add('col-span-1', 'row-span-1');
-                    wrapper.innerHTML = `
-                        <a href="${item.url}" target="_blank" class="w-full h-full flex items-center justify-center transition-transform active:scale-95 group-hover:scale-105" draggable="false" onclick="event.preventDefault();">
-                            <img src="${item.favicon || ''}" alt="${item.name} favicon" class="w-full h-full object-cover rounded-2xl shadow-md" onerror="${placeholder}" draggable="false">
-                        </a>`;
-                    wrapper.querySelector('a').onclick = (e) => {
-                        if (e.target.closest('.sortable-chosen')) { e.preventDefault(); return; }
-                        window.open(item.url, '_blank');
-                    };
+                els.inputModal.classList.add('hidden');
+
+                if (mode === 'add') {
+                    let icon = null;
+                    if(file) icon = await resizeImage(file);
+                    addItem(name, url, type, icon);
                 } else {
-                    itemEl.classList.add('col-span-2', 'row-span-2');
-                    wrapper.innerHTML = `
-                        <button class="folder-button w-full h-full bg-white/10 backdrop-blur-lg border border-white/5 rounded-3xl p-2 shadow-md transition-transform active:scale-95 group-hover:scale-105" draggable="false">
-                            ${renderFolderPreview(item.previewItems || [], item.name)}
-                        </button>`;
-                    wrapper.querySelector('.folder-button').onclick = (e) => {
-                        if (e.target.closest('.sortable-chosen')) { e.preventDefault(); return; }
-                        navigateToFolder(item.id);
-                    };
-                }
-
-                const optionsButton = document.createElement('button');
-                optionsButton.className = "absolute top-0 right-0 bg-black/20 backdrop-blur-md border border-white/10 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100 active:scale-90 z-10";
-                optionsButton.innerHTML = renderIcon('more-horizontal', 'w-4 h-4');
-                optionsButton.onclick = (e) => {
-                    e.stopPropagation();
-                    selectedItem = item;
-                    openActionMenu();
-                };
-                iconWrapper.appendChild(wrapper); 
-                iconWrapper.appendChild(optionsButton); 
-                itemEl.appendChild(iconWrapper); 
-                const nameParagraph = document.createElement('p');
-                nameParagraph.className = "text-center text-xs text-gray-200 mt-1.5 truncate w-full";
-                nameParagraph.textContent = item.name;
-                itemEl.appendChild(nameParagraph);
-                itemsGrid.appendChild(itemEl);
-            });
-
-            if (lucideLoaded) {
-                lucide.createIcons();
-            }
-        }
-
-        function renderFolderPreview(previewItems, folderName) {
-            const fallbackChar = folderName.charAt(0).toUpperCase() || 'F';
-            const darkPlaceholder = `https://placehold.co/128/374151/9CA3AF?text=${fallbackChar}&font=inter`;
-            const placeholder = `this.src='${darkPlaceholder}'`;
-            const darkSmallPlaceholder = `https://placehold.co/64/374151/9CA3AF?text=${fallbackChar}&font=inter`;
-            const smallPlaceholder = `this.src='${darkSmallPlaceholder}'`;
-
-            if (previewItems.length === 1) {
-                const item = previewItems[0];
-                if (item.type === 'folder') {
-                    return renderFolderPreview(item.previewItems || [], 'Sub');
-                }
-                return `<img src="${item.icon || ''}" alt="preview" class="w-full h-full object-cover rounded-2xl" onerror="${placeholder}">`;
-            }
-            let gridItems = '';
-            for (let i = 0; i < 4; i++) {
-                const item = previewItems[i];
-                if (item) {
-                    if (item.type === 'folder') {
-                        gridItems += `
-                            <div class="w-full h-full bg-white/5 rounded-lg p-0.5">
-                                ${renderFolderPreview(item.previewItems || [], 'Sub').replace('gap-1.5', 'gap-0.5')}
-                            </div>`;
-                    } else {
-                        gridItems += `<img src="${item.icon || ''}" alt="preview" class="w-full h-full object-cover rounded-lg" onerror="${smallPlaceholder}">`;
-                    }
-                } else {
-                    gridItems += `<div class="w-full h-full bg-white/5 rounded-lg"></div>`;
-                }
-            }
-            return `<div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-1.5">${gridItems}</div>`;
-        }
-
-        // --- Navigation ---
-        async function navigateToFolder(folderId, breadcrumbIndex = -1) {
-            
-            // 1. Check if Firebase is ready
-            if (!db || !userId || !itemsCollectionRef) {
-                console.warn("Firestore not ready, navigation cancelled.");
-                return; 
-            }
-            
-            // 2. Update Breadcrumbs
-            if (breadcrumbIndex > -1) {
-                breadcrumbs = breadcrumbs.slice(0, breadcrumbIndex + 1);
-            } else if (folderId !== currentFolderId && folderId !== 'root') {
-                try {
-                    const folderSnap = await getDoc(doc(itemsCollectionRef, folderId));
-                    if(folderSnap.exists()) {
-                        breadcrumbs.push({ id: folderId, name: folderSnap.data().name });
-                    } else {
-                        console.error("Folder not found:", folderId);
-                        folderId = "root"; // Go home if folder is invalid
-                        breadcrumbs = [{ id: "root", name: "Home" }];
-                    }
-                } catch (e) {
-                     console.error("Error fetching folder data:", e);
-                     folderId = "root";
-                     breadcrumbs = [{ id: "root", name: "Home" }];
-                }
-            } else if (folderId === 'root') {
-                breadcrumbs = [{ id: "root", name: "Home" }];
-            }
-            currentFolderId = folderId;
-            renderBreadcrumbs();
-            
-            // 3. Detach old listener
-            if (currentFolderListener) {
-                currentFolderListener(); // This is the unsubscribe function
-            }
-            
-            // 4. Create new query and attach real-time listener
-            itemsGrid.className = "grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-4";
-            itemsGrid.style.gridAutoRows = "minmax(min-content, max-content)";
-            
-            const q = query(itemsCollectionRef, where("parentId", "==", currentFolderId));
-            
-            currentFolderListener = onSnapshot(q, (querySnapshot) => {
-                const items = [];
-                allItemsCache = {}; // Reset cache on every update
-                
-                querySnapshot.forEach((doc) => {
-                    const itemData = doc.data();
-                    items.push(itemData);
-                    allItemsCache[itemData.id] = itemData; // Populate cache
-                });
-                
-                // Sort in memory (as per instructions, avoids composite indexes)
-                items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-                
-                renderItems(items);
-                
-                // 5. Re-initialize Drag-and-Drop
-                if (window.sortableInstance) {
-                    window.sortableInstance.destroy();
-                }
-                
-                window.sortableInstance = new Sortable(itemsGrid, {
-                    animation: 150,
-                    ghostClass: 'sortable-ghost',
-                    chosenClass: 'sortable-chosen',
-                    onEnd: async (evt) => {
-                        const newOrderIds = Array.from(evt.to.children).map(el => el.dataset.id);
-                        
-                        // Use a Firestore Batch Write to update all orders at once
-                        try {
-                            const batch = writeBatch(db);
-                            newOrderIds.forEach((id, index) => {
-                                if (id) {
-                                    const docRef = doc(itemsCollectionRef, id);
-                                    batch.update(docRef, { order: index });
-                                }
-                            });
-                            await batch.commit();
-                            
-                            // Update parent folder previews
-                            await updateAllAncestorPreviews(currentFolderId);
-                            // No need to call navigateToFolder, onSnapshot handles the re-render!
-                        } catch (error) {
-                            console.error("Error saving new order:", error);
-                            showNotification("Error saving order.", true);
-                        }
-                    }
-                });
-                
-                applyDragLockState(isDragLocked);
-                
-            }, (error) => {
-                console.error("Error with snapshot listener:", error);
-                showNotification("Error: Could not load items.", true);
-            });
-        }
-
-        // --- Core Denormalization Logic (Updated for Firestore) ---
-        async function updateAllAncestorPreviews(startFolderId) {
-            if (!itemsCollectionRef) return;
-
-            let currentParentId = startFolderId;
-            
-            while (currentParentId && currentParentId !== "root") {
-                // 1. Get the folder itself
-                const folderRef = doc(itemsCollectionRef, currentParentId);
-                const folderSnap = await getDoc(folderRef);
-                
-                if (!folderSnap.exists() || folderSnap.data().type !== 'folder') {
-                    break; // Stop if folder is gone or invalid
-                }
-                const currentFolder = folderSnap.data();
-
-                // 2. Get its children
-                const childrenQuery = query(itemsCollectionRef, where("parentId", "==", currentParentId));
-                const childrenSnap = await getDocs(childrenQuery);
-                
-                let children = [];
-                childrenSnap.forEach(doc => children.push(doc.data()));
-                
-                // 3. Sort children and get preview items
-                children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-                
-                const previewItems = children.slice(0, 4).map(child => {
-                    if (child.type === 'link') {
-                        return { type: 'link', icon: child.favicon };
-                    } else { 
-                        return { type: 'folder', previewItems: child.previewItems || [] };
-                    }
-                });
-
-                // 4. Update the folder document
-                await updateDoc(folderRef, { previewItems: previewItems });
-                
-                // 5. Go up to the next parent
-                currentParentId = currentFolder.parentId;
-            }
-        }
-
-
-        // --- CRUD Operations (Updated for Firestore) ---
-        async function addItem(type, name, url = null, customIconFile = null, importedFavicon = null) {
-            if (!itemsCollectionRef) {
-                showNotification("Database not connected.", true);
-                return null;
-            }
-            
-            let fullUrl = url;
-            try {
-                if (type === 'link' && url) {
-                    if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) { 
-                        fullUrl = 'https://' + fullUrl; 
-                    }
-                    if (!name) { 
-                        try {
-                            let hostname = new URL(fullUrl).hostname;
-                            hostname = hostname.replace(/^www\./, '');
-                            let generatedName = hostname.split('.')[0];
-                            name = generatedName.charAt(0).toUpperCase() + generatedName.slice(1);
-                        } catch (e) {
-                            name = "Untitled Link";
-                        }
-                    }
-                }
-
-                // Get current item count for ordering
-                const q = query(itemsCollectionRef, where("parentId", "==", currentFolderId));
-                const currentItemsSnap = await getDocs(q);
-                const currentItemsLength = currentItemsSnap.size;
-
-                const newItem = {
-                    id: crypto.randomUUID(), // Use custom ID to match doc path
-                    name: name, 
-                    type: type, 
-                    parentId: currentFolderId,
-                    createdAt: new Date().toISOString(), 
-                    order: currentItemsLength
-                };
-
-                if (type === 'link') {
-                    if (!url) { showNotification("URL is required for links.", true); return null; }
-                    newItem.url = fullUrl;
-                    
-                    if (importedFavicon) { 
-                        newItem.favicon = importedFavicon;
-                    } else if (customIconFile) { 
-                        newItem.favicon = await resizeAndEncode(customIconFile);
-                    } else { 
-                        const iconUrl = `https://www.google.com/s2/favicons?domain=${getDomainFromUrl(fullUrl)}&sz=128`;
-                        newItem.favicon = await fetchAndEncodeIcon(iconUrl); 
-                    }
-
-                } else {
-                    newItem.previewItems = [];
-                }
-                
-                // Add to Firestore using setDoc with the custom ID
-                const newItemRef = doc(itemsCollectionRef, newItem.id);
-                await setDoc(newItemRef, newItem);
-                
-                return newItem.id; // Return new ID
-            } catch (error) {
-                console.error("Error adding item:", error);
-                showNotification("Error adding item.", true);
-                return null;
-            }
-        }
-        
-        async function editItem(itemId, newName, newUrl = null, newIconUrl = null, newIconFile = null) {
-            if (!itemsCollectionRef) return;
-            
-            let fullUrl = newUrl;
-            try {
-                const itemRef = doc(itemsCollectionRef, itemId);
-                const itemSnap = await getDoc(itemRef);
-                if (!itemSnap.exists()) {
-                    showNotification("Item not found.", true);
-                    return;
-                }
-
-                const item = itemSnap.data();
-                let didIconChange = false;
-                let updates = {};
-
-                if (item.type === 'link') {
-                    let effectiveUrl = item.url;
-                    if (newUrl) {
-                        if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) { 
-                            fullUrl = 'https://' + fullUrl; 
-                        }
-                        updates.url = fullUrl;
-                        effectiveUrl = fullUrl;
-                    }
-
-                    let finalIconData = item.favicon; 
-                    
-                    if (newIconFile) {
-                        finalIconData = await resizeAndEncode(newIconFile);
-                    } else if (newIconUrl && newIconUrl.startsWith('http')) {
-                        finalIconData = await fetchAndEncodeIcon(newIconUrl);
-                    } else if (newIconUrl === "") { 
-                        const defaultIconUrl = `https://www.google.com/s2/favicons?domain=${getDomainFromUrl(effectiveUrl)}&sz=128`;
-                        finalIconData = await fetchAndEncodeIcon(defaultIconUrl);
-                    } else if (newUrl && !newIconUrl && !newIconFile) { 
-                        const defaultIconUrl = `https://www.google.com/s2/favicons?domain=${getDomainFromUrl(fullUrl)}&sz=128`;
-                        finalIconData = await fetchAndEncodeIcon(defaultIconUrl);
-                    }
-                    
-                    if (item.favicon !== finalIconData) {
-                        updates.favicon = finalIconData;
-                        didIconChange = true;
-                    }
-                    
-                    if (!newName) { 
-                         try {
-                            let hostname = new URL(updates.url || item.url).hostname;
-                            hostname = hostname.replace(/^www\./, '');
-                            let generatedName = hostname.split('.')[0];
-                            newName = generatedName.charAt(0).toUpperCase() + generatedName.slice(1);
-                        } catch (e) {
-                            newName = "Untitled Link";
-                        }
-                    }
-                }
-                
-                updates.name = newName; 
-                
-                await updateDoc(itemRef, updates);
-                
-                showNotification("Item updated!");
-                if (didIconChange) {
-                    await updateAllAncestorPreviews(item.parentId);
-                }
-                // No need to call navigateToFolder, onSnapshot handles it!
-            } catch (error) {
-                console.error("Error updating item:", error);
-                showNotification("Error updating item.", true);
-            }
-        }
-        
-        async function moveItem(itemId, oldParentId, newParentId) {
-            if (!itemsCollectionRef) return;
-            if (itemId === newParentId) { 
-                showNotification("Cannot move a folder into itself.", true); 
-                return; 
-            }
-            
-            try {
-                // Check for moving a folder into its own subfolder
-                const itemRef = doc(itemsCollectionRef, itemId);
-                const itemSnap = await getDoc(itemRef);
-                if (!itemSnap.exists()) return;
-                
-                if (itemSnap.data().type === 'folder') {
-                    let tempParentId = newParentId;
-                    while(tempParentId !== 'root' && tempParentId) {
-                        if (tempParentId === itemId) {
-                            showNotification("Cannot move a folder into one of its subfolders.", true);
-                            return;
-                        }
-                        const parentSnap = await getDoc(doc(itemsCollectionRef, tempParentId));
-                        if (!parentSnap.exists()) break;
-                        tempParentId = parentSnap.data().parentId;
-                    }
-                }
-
-                // Get new order
-                const newParentItemsQuery = query(itemsCollectionRef, where("parentId", "==", newParentId));
-                const newParentItemsSnap = await getDocs(newParentItemsQuery);
-                const newOrder = newParentItemsSnap.size;
-
-                // Update the item
-                await updateDoc(itemRef, { parentId: newParentId, order: newOrder });
-                
-                showNotification("Item moved!");
-                
-                // Update previews
-                await updateAllAncestorPreviews(oldParentId);
-                await updateAllAncestorPreviews(newParentId);
-                
-                // No need to call navigateToFolder, onSnapshot handles it!
-            } catch (error) {
-                console.error("Error moving item:", error);
-                showNotification("Error moving item.", true);
-            }
-        }
-
-        async function deleteItem(itemId, parentId, type) {
-            if (!itemsCollectionRef) return;
-            
-            try {
-                if (type === 'link') {
-                    await deleteDoc(doc(itemsCollectionRef, itemId));
-                } else {
-                    // This is a folder, must delete recursively
-                    await deleteFolderRecursive(itemId, itemsCollectionRef);
-                }
-                
-                // Re-order remaining items
-                const q = query(itemsCollectionRef, where("parentId", "==", parentId));
-                const snap = await getDocs(q);
-                
-                let remainingItems = [];
-                snap.forEach(doc => remainingItems.push(doc.data()));
-                
-                remainingItems.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-                
-                const batch = writeBatch(db);
-                remainingItems.forEach((item, index) => {
-                    batch.update(doc(itemsCollectionRef, item.id), { order: index });
-                });
-                await batch.commit();
-
-                showNotification("Item deleted!");
-                await updateAllAncestorPreviews(parentId);
-                
-                // No need to call navigateToFolder, onSnapshot handles it!
-            } catch (error) {
-                console.error("Error deleting item:", error);
-                showNotification("Error deleting item.", true);
-            }
-        }
-
-        async function deleteFolderRecursive(folderId, itemsCollectionRef) {
-            // This function recursively deletes a folder and all its contents
-            const batch = writeBatch(db);
-            const folderQueue = [folderId];
-            const visited = new Set(); // To prevent infinite loops (just in case)
-
-            while (folderQueue.length > 0) {
-                const currentId = folderQueue.shift();
-                
-                if (visited.has(currentId)) continue;
-                visited.add(currentId);
-                
-                // Delete the folder itself
-                batch.delete(doc(itemsCollectionRef, currentId));
-                
-                // Find all children
-                const q = query(itemsCollectionRef, where("parentId", "==", currentId));
-                const childrenSnap = await getDocs(q);
-                
-                childrenSnap.forEach(childDoc => {
-                    if (childDoc.data().type === 'folder') {
-                        folderQueue.push(childDoc.id); // Add subfolder to queue
-                    } else {
-                        batch.delete(childDoc.ref); // Delete link
-                    }
-                });
-            }
-            
-            await batch.commit();
-        }
-
-        // --- Modal & Menu Handlers ---
-        function openAddMenu() { addMenu.classList.remove('translate-y-full'); addMenuOverlay.classList.remove('hidden'); }
-        function closeAddMenu() { addMenu.classList.add('translate-y-full'); addMenuOverlay.classList.add('hidden'); }
-        function openActionMenu() { actionMenu.classList.remove('translate-y-full'); actionMenuOverlay.classList.remove('hidden'); }
-        function closeActionMenu() { actionMenu.classList.add('translate-y-full'); actionMenuOverlay.classList.add('hidden'); }
-        function openDeleteModal() {
-            deleteModalTitle.textContent = `Delete "${selectedItem.name}"?`;
-            if (selectedItem.type === 'folder') {
-                deleteModalText.textContent = "This will delete all items inside this folder from your account. This action cannot be undone.";
-            } else {
-                deleteModalText.textContent = "This action cannot be undone.";
-            }
-            deleteModalOverlay.classList.remove('hidden');
-        }
-        function closeDeleteModal() { deleteModalOverlay.classList.add('hidden'); }
-        
-        function openClearAllModal() {
-            clearAllModalOverlay.classList.remove('hidden');
-        }
-        function closeClearAllModal() {
-            clearAllModalOverlay.classList.add('hidden');
-        }
-
-        // --- NEW Mobile Settings Menu Handlers ---
-        function openMobileSettingsMenu() {
-            mobileSettingsMenu.classList.remove('translate-y-full');
-            mobileSettingsOverlay.classList.remove('hidden');
-        }
-        function closeMobileSettingsMenu() {
-            mobileSettingsMenu.classList.add('translate-y-full');
-            mobileSettingsOverlay.classList.add('hidden');
-        }
-
-
-        async function openInputModal(mode, type = 'link') {
-            inputForm.reset();
-            iconUploadPreview.classList.add('hidden');
-            itemIconUploadInput.value = ''; 
-            
-            if (mode === 'add') {
-                inputModalTitle.textContent = type === 'link' ? 'Add New Link' : 'Add New Folder';
-                urlInputGroup.style.display = type === 'link' ? 'block' : 'none';
-                iconUploadGroup.style.display = type === 'link' ? 'block' : 'none'; 
-                itemUrlInput.required = type === 'link';
-                itemNameInput.required = (type === 'folder');
-                
-                inputForm.onsubmit = async (e) => {
-                    e.preventDefault();
-                    const iconFile = itemIconUploadInput.files[0];
-                    const iconUrl = itemIconUrlInput.value;
-                    
-                    let finalUrl = itemUrlInput.value;
-                    let finalName = itemNameInput.value;
-                    
-                    let newId;
-                    if (iconFile) {
-                        newId = await addItem(type, finalName, finalUrl, iconFile, null);
-                    } else if (iconUrl) {
-                        newId = await addItem(type, finalName, finalUrl, null, null); 
-                        if (newId) {
-                            // Do a quick edit to add the icon URL
-                            await editItem(newId, finalName, finalUrl, iconUrl, null); 
-                        }
-                    } else {
-                        newId = await addItem(type, finalName, finalUrl, null, null); 
-                    }
-
-                    if (newId) {
-                        showNotification(`${type === 'link' ? 'Link' : 'Folder'} added!`);
-                        await updateAllAncestorPreviews(currentFolderId);
-                        // No need to navigate, snapshot handles it
-                    }
-                    closeInputModal();
-                };
-            } else if (mode === 'edit') { 
-                inputModalTitle.textContent = `Edit "${selectedItem.name}"`;
-                itemNameInput.value = selectedItem.name;
-                
-                if (selectedItem.type === 'link') {
-                    urlInputGroup.style.display = 'block';
-                    iconUploadGroup.style.display = 'block'; 
-                    itemUrlInput.value = selectedItem.url;
-                    itemUrlInput.required = true;
-                    itemNameInput.required = false; 
-                    
-                    if (selectedItem.favicon) {
-                        iconUploadPreview.src = selectedItem.favicon;
-                        iconUploadPreview.classList.remove('hidden');
-                    }
-                    if (selectedItem.favicon && !selectedItem.favicon.startsWith('data:')) {
-                        itemIconUrlInput.value = selectedItem.favicon;
-                    } else {
-                         itemIconUrlInput.value = '';
-                    }
-                    
-                } else { 
-                    urlInputGroup.style.display = 'none';
-                    iconUploadGroup.style.display = 'none'; 
-                    itemUrlInput.required = false;
-                    itemNameInput.required = true; 
-                }
-                
-                inputForm.onsubmit = async (e) => {
-                    e.preventDefault();
-                    let newName = itemNameInput.value;
-                    let newUrl = (selectedItem.type === 'link') ? itemUrlInput.value : null;
-                    let newIconFile = itemIconUploadInput.files[0];
-                    let newIconUrl = itemIconUrlInput.value;
-
-                    if (selectedItem.type === 'link' && !newName) {
-                         try {
-                            let fullUrl = itemUrlInput.value;
-                            if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) { 
-                                fullUrl = 'https://' + fullUrl; 
-                            }
-                            let hostname = new URL(fullUrl).hostname;
-                            hostname = hostname.replace(/^www\./, '');
-                            let generatedName = hostname.split('.')[0];
-                            newName = generatedName.charAt(0).toUpperCase() + generatedName.slice(1);
-                        } catch (e) {
-                            newName = "Untitled Link";
-                        }
-                    }
-                    
-                    await editItem(selectedItem.id, newName, newUrl, newIconUrl, newIconFile); 
-                    closeInputModal();
-                };
-
-                resetIconButton.onclick = () => {
-                    const defaultFaviconUrl = `https://www.google.com/s2/favicons?domain=${getDomainFromUrl(itemUrlInput.value)}&sz=128`;
-                    itemIconUrlInput.value = ""; 
-                    itemIconUploadInput.value = ''; 
-                    
-                    iconUploadPreview.src = defaultFaviconUrl; 
-                    iconUploadPreview.classList.remove('hidden');
-                    
-                    itemIconUrlInput.value = ""; 
-                };
-            }
-            inputModalOverlay.classList.remove('hidden');
-        }
-        function closeInputModal() { 
-            inputModalOverlay.classList.add('hidden'); 
-            inputForm.onsubmit = null;
-            iconUploadPreview.src = '';
-            if (resetIconButton) {
-                resetIconButton.onclick = null; 
-            }
-        }
-        async function openMoveModal() {
-            moveModalTargetFolderId = "root";
-            moveModalBreadcrumbs = [{ id: "root", name: "Home" }];
-            await renderMoveFolderList();
-            moveModalOverlay.classList.remove('hidden');
-        }
-        function closeMoveModal() { moveModalOverlay.classList.add('hidden'); }
-        
-        async function renderMoveFolderList() {
-            moveBreadcrumbs.innerHTML = '';
-            moveModalBreadcrumbs.forEach((crumb, index) => {
-                const isLast = index === moveModalBreadcrumbs.length - 1;
-                const crumbEl = document.createElement('div');
-                crumbEl.className = "flex items-center space-x-1";
-                const button = document.createElement('button');
-                button.textContent = crumb.name;
-                button.className = `text-sm font-medium rounded-md px-1.5 py-0.5 transition-colors ${isLast ? 'text-white' : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'}`;
-                if (!isLast) {
-                    button.onclick = () => {
-                        moveModalTargetFolderId = crumb.id;
-                        moveModalBreadcrumbs = moveModalBreadcrumbs.slice(0, index + 1);
-                        renderMoveFolderList();
-                    };
-                }
-                crumbEl.appendChild(button);
-                if (!isLast) {
-                    const separator = document.createElement('span');
-                    separator.className = "text-gray-500";
-                    separator.innerHTML = renderIcon('chevron-right', 'w-4 h-4');
-                    crumbEl.appendChild(separator);
-                }
-                moveBreadcrumbs.appendChild(crumbEl);
-            });
-            moveBreadcrumbs.scrollLeft = moveBreadcrumbs.scrollWidth;
-
-            moveFolderList.innerHTML = '';
-            try {
-                const q = query(itemsCollectionRef, 
-                    where("type", "==", "folder"),
-                    where("parentId", "==", moveModalTargetFolderId)
-                );
-                const foldersSnap = await getDocs(q);
-                
-                let folders = [];
-                foldersSnap.forEach(doc => {
-                    if (doc.id !== selectedItem.id) { // Don't show the item itself
-                        folders.push(doc.data());
-                    }
-                });
-
-                folders.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-                
-                if (folders.length === 0) {
-                    moveFolderList.innerHTML = '<div class="text-gray-400 p-4 text-center">No subfolders.</div>';
-                    return;
-                }
-                folders.forEach(folder => {
-                    const button = document.createElement('button');
-                    button.className = "w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 transition-colors text-left";
-                    button.innerHTML = `
-                        ${renderIcon('folder', 'w-5 h-5 text-gray-400 flex-shrink-0')}
-                        <span class="truncate text-white">${folder.name}</span>
-                    `;
-                    button.onclick = () => {
-                        moveModalTargetFolderId = folder.id;
-                        moveModalBreadcrumbs.push({ id: folder.id, name: folder.name });
-                        renderMoveFolderList();
-                    };
-                    moveFolderList.appendChild(button);
-                });
-            } catch (error) {
-                console.error("Error fetching move folders:", error);
-                moveFolderList.innerHTML = '<div class="text-red-500">Error loading folders.</div>';
-            }
-            if (lucideLoaded) {
-                lucide.createIcons();
-            }
-        }
-        
-        // --- NEW: Import/Export Functions (Updated for Firestore) ---
-
-        async function handleImportFile(event) {
-            if (!itemsCollectionRef) return;
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const fileContent = e.target.result;
-                    const data = JSON.parse(fileContent);
-                    
-                    if (!data || typeof data !== 'object') {
-                        throw new Error("Invalid JSON file.");
-                    }
-                    
-                    authStatus.textContent = 'Importing...';
-                    loadingSpinnerIcon.classList.remove('hidden');
-                    googleSigninButton.classList.add('hidden');
-                    authScreen.classList.remove('hidden');
-
-                    const batch = writeBatch(db);
-                    
-                    // Get current item count for ordering
-                    const q = query(itemsCollectionRef, where("parentId", "==", currentFolderId));
-                    const currentItemsSnap = await getDocs(q);
-                    const initialOrder = currentItemsSnap.size;
-
-                    // Start merging at the current folder
-                    await mergeImportData(data, currentFolderId, initialOrder, batch, itemsCollectionRef);
-                    await batch.commit();
-                    
-                    showNotification(`Imported bookmarks into "${breadcrumbs[breadcrumbs.length - 1].name}"!`);
-                    await updateAllAncestorPreviews(currentFolderId);
-                    // No need to navigate, snapshot handles it
-                } catch (err) {
-                    console.error("Error parsing import file:", err);
-                    showNotification("Error: Could not parse bookmark file.", true);
-                } finally {
-                    event.target.value = null; // Reset file input
-                    authScreen.classList.add('hidden');
-                    loadingSpinnerIcon.classList.add('hidden');
-                    googleSigninButton.classList.remove('hidden');
+                    const updates = { name };
+                    if(isLink) updates.url = url;
+                    if(file) updates.newIconFile = file;
+                    updateItem(selectedItem.id, updates);
                 }
             };
-            reader.onerror = () => {
-                showNotification("Error: Could not read file.", true);
-                event.target.value = null;
-            };
-            reader.readAsText(file);
-        }
+        };
 
-        async function mergeImportData(importedItems, parentId, startingOrder, batch, itemsCollectionRef) {
-            let currentOrder = startingOrder;
+        els.btnAddLink.onclick = () => { closeMenu(els.addMenu, els.addOverlay); openInput('add', 'link'); };
+        els.btnAddFolder.onclick = () => { closeMenu(els.addMenu, els.addOverlay); openInput('add', 'folder'); };
+        document.getElementById('btn-cancel-input').onclick = () => els.inputModal.classList.add('hidden');
 
-            for (const importedItem of importedItems) {
-                // We create new items with new IDs during import
-                const newItem = {
-                    ...importedItem,
-                    id: crypto.randomUUID(),
-                    parentId: parentId,
-                    order: importedItem.order ?? currentOrder++,
-                    createdAt: importedItem.createdAt || new Date().toISOString()
+        // Edit/Delete
+        els.btnEdit.onclick = () => { closeMenu(els.actionMenu, els.actionOverlay); openInput('edit'); };
+        els.btnDelete.onclick = () => { closeMenu(els.actionMenu, els.actionOverlay); deleteItemRecursive(selectedItem.id); };
+
+        // Move
+        els.btnMove.onclick = () => {
+            closeMenu(els.actionMenu, els.actionOverlay);
+            moveTargetId = 'root';
+            moveCrumbPath = [{id:'root', name:'Home'}];
+            renderMoveUI();
+            els.moveModal.classList.remove('hidden');
+        };
+        document.getElementById('btn-cancel-move').onclick = () => els.moveModal.classList.add('hidden');
+        document.getElementById('btn-confirm-move').onclick = () => {
+            moveItem(selectedItem.id, moveTargetId);
+            els.moveModal.classList.add('hidden');
+        };
+
+        function renderMoveUI() {
+            // Breadcrumbs
+            const crumbsDiv = document.getElementById('move-breadcrumbs');
+            crumbsDiv.innerHTML = '';
+            moveCrumbPath.forEach((c, i) => {
+                const s = document.createElement('span');
+                s.textContent = c.name + (i < moveCrumbPath.length-1 ? ' > ' : '');
+                s.className = "cursor-pointer hover:text-white";
+                s.onclick = () => {
+                    moveTargetId = c.id;
+                    moveCrumbPath = moveCrumbPath.slice(0, i+1);
+                    renderMoveUI();
                 };
-                
-                // Remove children property if it exists, it's not part of the DB model
-                const { children, ...dbItem } = newItem;
-                
-                const newItemRef = doc(itemsCollectionRef, dbItem.id);
-                batch.set(newItemRef, dbItem);
+                crumbsDiv.appendChild(s);
+            });
 
-                if (importedItem.type === 'folder' && importedItem.children && importedItem.children.length > 0) {
-                    // Pass 0 for startingOrder since it's a new folder
-                    await mergeImportData(importedItem.children, dbItem.id, 0, batch, itemsCollectionRef);
-                }
-            }
+            // List
+            const list = document.getElementById('move-list');
+            list.innerHTML = '';
+            const folders = Object.values(localItems)
+                .filter(i => i.parentId === moveTargetId && i.type === 'folder' && i.id !== selectedItem.id);
+            
+            if(folders.length === 0) list.innerHTML = '<p class="text-gray-500 text-center py-4">No subfolders</p>';
+            
+            folders.forEach(f => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3 hover:bg-white/5 rounded text-gray-300 flex items-center gap-2";
+                btn.innerHTML = `<i data-lucide="folder" class="w-4 h-4"></i> ${f.name}`;
+                btn.onclick = () => {
+                    moveTargetId = f.id;
+                    moveCrumbPath.push({id: f.id, name: f.name});
+                    renderMoveUI();
+                };
+                list.appendChild(btn);
+            });
+            lucide.createIcons();
         }
 
-        async function exportBookmarks() {
-            if (!itemsCollectionRef) return;
-            
-            try {
-                authStatus.textContent = 'Exporting...';
-                loadingSpinnerIcon.classList.remove('hidden');
-                googleSigninButton.classList.add('hidden');
-                authScreen.classList.remove('hidden');
-
-                const hierarchy = await buildHierarchy(itemsCollectionRef, 'root');
-                
-                const jsonString = JSON.stringify(hierarchy, null, 2);
-                const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `bookmarks-backup-${auth.currentUser.email}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                showNotification("Export successful!");
-
-            } catch (err) {
-                console.error("Error exporting bookmarks:", err);
-                showNotification("Error exporting bookmarks.", true);
-            } finally {
-                authScreen.classList.add('hidden');
-                loadingSpinnerIcon.classList.add('hidden');
-                googleSigninButton.classList.remove('hidden');
-            }
-        }
-
-        async function buildHierarchy(itemsCollectionRef, parentId) {
-            const q = query(itemsCollectionRef, where("parentId", "==", parentId));
-            const snap = await getDocs(q);
-            
-            let children = [];
-            snap.forEach(doc => children.push(doc.data()));
-            
-            children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-            
-            const hierarchy = [];
-            for (const item of children) {
-                // We only need to save the essential data, not the ID
-                const { id, parentId: pId, ...exportableItem } = item; 
-                
-                if (item.type === 'folder') {
-                    hierarchy.push({
-                        ...exportableItem,
-                        children: await buildHierarchy(itemsCollectionRef, item.id) 
-                    });
-                } else if (item.type === 'link') {
-                    hierarchy.push(exportableItem);
-                }
-            }
-            return hierarchy;
-        }
-
-
-        // --- Event Listeners ---
-        
-        // NEW: Auth Listeners
-        googleSigninButton.onclick = async () => {
-            authStatus.textContent = 'Signing in...';
-            loadingSpinnerIcon.classList.remove('hidden');
-            googleSigninButton.classList.add('hidden');
-            
-            const provider = new GoogleAuthProvider();
-            try {
-                await signInWithPopup(auth, provider);
-                // onAuthStateChanged will handle the rest
-            } catch (error) {
-                console.error("Error during sign-in:", error);
-                authStatus.textContent = 'Sign-in failed. Please try again.';
-                loadingSpinnerIcon.classList.add('hidden');
-                googleSigninButton.classList.remove('hidden');
+        // Icon Inputs
+        document.getElementById('icon-preview-click').onclick = () => els.iconFile.click();
+        els.iconFile.onchange = async (e) => {
+            if(e.target.files[0]) {
+                const b64 = await resizeImage(e.target.files[0]);
+                els.inputPreview.src = b64;
             }
         };
-        
-        signoutButton.onclick = async () => {
-            await signOut(auth);
-            // onAuthStateChanged will handle the rest
-        };
-        
-        mobileSignoutButton.onclick = async () => {
-            closeMobileSettingsMenu();
-            await signOut(auth);
-            // onAuthStateChanged will handle the rest
-        };
-
-        
-        // App Listeners
-        addButton.onclick = openAddMenu;
-        cancelAddMenu.onclick = closeAddMenu;
-        addMenuOverlay.onclick = closeAddMenu;
-        addLinkButton.onclick = () => { closeAddMenu(); openInputModal('add', 'link'); };
-        addFolderButton.onclick = () => { closeAddMenu(); openInputModal('add', 'folder'); };
-        cancelActionMenu.onclick = closeActionMenu;
-        actionMenuOverlay.onclick = closeActionMenu;
-        editButton.onclick = () => { closeActionMenu(); openInputModal('edit', selectedItem.type); }; 
-        moveButton.onclick = () => { closeActionMenu(); openMoveModal(); };
-        deleteButton.onclick = () => { closeActionMenu(); openDeleteModal(); };
-        cancelDeleteModal.onclick = closeDeleteModal;
-        deleteModalOverlay.onclick = (e) => { if (e.target === deleteModalOverlay) closeDeleteModal(); };
-        confirmDeleteButton.onclick = async () => { 
-            await deleteItem(selectedItem.id, selectedItem.parentId, selectedItem.type); 
-            closeDeleteModal(); 
-        };
-        cancelInputModal.onclick = closeInputModal;
-        inputModalOverlay.onclick = (e) => { if (e.target === inputModalOverlay) closeInputModal(); };
-        cancelMoveModal.onclick = closeMoveModal;
-        moveModalOverlay.onclick = (e) => { if (e.target === moveModalOverlay) closeMoveModal(); };
-        confirmMoveButton.onclick = async () => { 
-            await moveItem(selectedItem.id, selectedItem.parentId, moveModalTargetFolderId); 
-            closeMoveModal(); 
-        };
-        
-        // Desktop button
-        clearAllButton.onclick = openClearAllModal;
-        
-        // Mobile settings menu buttons
-        mobileSettingsButton.onclick = openMobileSettingsMenu;
-        cancelMobileSettingsMenu.onclick = closeMobileSettingsMenu;
-        mobileSettingsOverlay.onclick = closeMobileSettingsMenu;
-        mobileClearAllButton.onclick = () => {
-            closeMobileSettingsMenu();
-            openClearAllModal();
-        };
-
-        cancelClearAllModal.onclick = closeClearAllModal;
-        clearAllModalOverlay.onclick = (e) => {
-            if (e.target === clearAllModalOverlay) closeClearAllModal();
-        };
-        confirmClearAllButton.onclick = async () => {
-            if (!itemsCollectionRef) {
-                showNotification("Not connected.", true);
-                return;
-            }
-            
-            authStatus.textContent = 'Deleting all items...';
-            loadingSpinnerIcon.classList.remove('hidden');
-            googleSigninButton.classList.add('hidden');
-            authScreen.classList.remove('hidden');
-            
-            try {
-                // Fetch all documents and delete them in a batch
-                const snap = await getDocs(itemsCollectionRef);
-                const batch = writeBatch(db);
-                snap.forEach(doc => batch.delete(doc.ref));
-                await batch.commit();
-
-                // Clear drag lock state from localStorage
-                localStorage.removeItem(DRAG_LOCK_KEY);
-                
-                showNotification("All items deleted!");
-            } catch (error) {
-                console.error("Error clearing all data:", error);
-                showNotification("Error clearing data.", true);
-            } finally {
-                authScreen.classList.add('hidden');
-                loadingSpinnerIcon.classList.add('hidden');
-                googleSigninButton.classList.remove('hidden');
-                closeClearAllModal();
-                // No reload needed, onSnapshot will update the UI to be empty
+        els.inputUrl.onblur = () => {
+            if(els.inputUrl.value && !els.iconFile.files.length && !els.inputPreview.src.includes('data:')) {
+                const d = new URL(els.inputUrl.value).hostname;
+                els.inputPreview.src = `https://www.google.com/s2/favicons?domain=${d}&sz=128`;
             }
         };
 
-        itemIconUploadInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    iconUploadPreview.src = event.target.result;
-                    iconUploadPreview.classList.remove('hidden');
-                    itemIconUrlInput.value = '';
-                }
-                reader.readAsDataURL(file);
-            } else {
-                iconUploadPreview.classList.add('hidden');
-            }
+        // Lock
+        const toggleLock = () => {
+            isDragLocked = !isDragLocked;
+            const icon = isDragLocked ? 'lock' : 'unlock';
+            els.desktopLock.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+            els.mobileLock.querySelector('span').textContent = isDragLocked ? 'Unlock Dragging' : 'Lock Dragging';
+            els.mobileLock.querySelector('i').setAttribute('data-lucide', icon);
+            lucide.createIcons();
+            initSortable();
         };
-        itemIconUrlInput.oninput = () => {
-            if (itemIconUrlInput.value) {
-                itemIconUploadInput.value = ''; 
-                iconUploadPreview.src = itemIconUrlInput.value; 
-                iconUploadPreview.classList.remove('hidden');
-            } else {
-                iconUploadPreview.classList.add('hidden');
-            .
-            }
-        };
-
-        // NEW: Import/Export Listeners
-        importButton.onclick = () => {
-            importFileInput.click();
-        };
-        importFileInput.onchange = handleImportFile;
-        exportButton.onclick = exportBookmarks;
-        
-        // Mobile Import/Export Listeners
-        mobileImportButton.onclick = () => {
-            closeMobileSettingsMenu();
-            importFileInput.click();
-        };
-        mobileExportButton.onclick = () => {
-            closeMobileSettingsMenu();
-            exportBookmarks();
-        };
-        
-        // --- Initialization ---
-        // This function is now ONLY called *after* successful login
-        async function initializeAppContainer() {
-            try {
-                initializeDragLock(); 
-                
-                if (typeof lucide !== 'undefined') {
-                    lucideLoaded = true;
-                    lucide.createIcons();
-                } else {
-                    console.warn("Lucide not loaded on init, will try again.");
-                }
-                
-                // This will set up the first onSnapshot listener
-                await navigateToFolder("root"); 
-
-            } catch (e) {
-                console.error("Error initializing app container:", e);
-                authStatus.textContent = `Error: ${e.message}`;
-                authScreen.classList.remove('hidden');
-                appContainer.classList.add('hidden');
-            }
-        }
-
-        function main() {
-            const lucideScript = document.getElementById('lucide-script');
-            let appStarted = false;
-
-            const startApp = () => {
-                if (appStarted) return;
-                appStarted = true;
-                console.log("Starting app...");
-                if (typeof lucide !== 'undefined') {
-                    console.log("Lucide icons loaded successfully.");
-                    lucideLoaded = true;
-                } else {
-                    console.warn("Starting app, but Lucide icons may not have loaded.");
-                }
-                // This now *only* initializes Firebase.
-                // Firebase's onAuthStateChanged will handle starting the app.
-                initializeFirebase();
-            };
-            
-            if (!lucideScript) {
-                 console.error("Lucide script tag not found! Starting app without icons.");
-                startApp();
-                return;
-            }
-            if (typeof lucide !== 'undefined') {
-                console.log("Lucide already loaded (cached).");
-                setTimeout(startApp, 0); 
-                return;
-            }
-            lucideScript.onload = startApp;
-            lucideScript.onerror = () => {
-                console.error("Failed to load Lucide script from CDN.");
-                startApp(); 
-            };
-            setTimeout(() => {
-                if (!appStarted) {
-                    console.warn("Lucide onload event timeout (3s). Forcing app start.");
-                    startApp();
-                }
-            }, 3000); 
-        }
-
-        // Start the application
-        main();
+        els.desktopLock.onclick = toggleLock;
+        els.mobileLock.onclick = toggleLock;
 
     </script>
 </body>
